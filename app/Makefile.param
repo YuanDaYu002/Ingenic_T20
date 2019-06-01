@@ -1,0 +1,45 @@
+
+export MY_PATH=$(shell pwd)/..
+export DEV_PATH=$(MY_PATH)/..
+export SDK_PATH=$(DEV_PATH)/Ingenic-SDK-T10T20-3.12.0-20180320
+export MY_OUT=$(MY_PATH)/out
+export MY_LIBOUT=$(MY_OUT)/lib
+
+CONFIG_UCLIBC_BUILD=y
+CROSS_COMPILE ?= mips-linux-gnu-
+CC = $(CROSS_COMPILE)gcc
+CPLUSPLUS = $(CROSS_COMPILE)g++
+LD = $(CROSS_COMPILE)ld
+AR = $(CROSS_COMPILE)ar cr
+STRIP = $(CROSS_COMPILE)strip
+##########################################################################
+INC_FLAGS = -I$(SDK_PATH)/include/imp
+INC_FLAGS += -I$(SDK_PATH)/include/sysutils
+INC_FLAGS += -I$(MY_PATH)/include
+INC_FLAGS += -I$(MY_PATH)/3rdinc
+##########################################################################
+CFLAGS = -O2 -Wall -march=mips32r2c
+
+ifeq ($(CONFIG_UCLIBC_BUILD), y)
+	CFLAGS += -muclibc
+	LDFLAG += -muclibc
+else	
+	#默认link的libc即为glibc
+endif
+##########################################################################
+SENSOR_TYPE ?=
+SENSOR_LIBS =
+
+#SENSOR_SETTINGS_DIR = $(SDK_PATH)/res/sensor_settings
+##########################################################################
+ifeq ($(CONFIG_UCLIBC_BUILD), y)
+	SDK_LIB_DIR = -L$(SDK_PATH)/lib/uclibc
+else
+	SDK_LIB_DIR = -L$(SDK_PATH)/lib/glibc
+endif
+
+SDK_LIB = -limp -lalog -lsysutils
+##########################################################################
+LIBS = $(SDK_LIB) -lencoder -lstream -lfmp4encoder 
+
+
