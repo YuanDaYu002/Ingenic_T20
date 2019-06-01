@@ -166,7 +166,7 @@ static int osd_show(void)
 	return HLE_RET_OK;
 }
 
-static void *timestamp_update_thread(void *args)
+static void *timestamp_update_func(void *args)
 {
 	pthread_detach(pthread_self());
 	 
@@ -278,46 +278,30 @@ static void *timestamp_update_thread(void *args)
 	return NULL;
 }
 
-int main(int argc, char *argv[])
+int timestamp_update_task(void)
 {
 	int ret;
 
 	/*Create OSD bgramap update thread */
 	pthread_t tid;
-	ret = pthread_create(&tid, NULL, timestamp_update_thread, NULL);
+	ret = pthread_create(&tid, NULL, timestamp_update_func, NULL);
 	if (ret) {
-		ERROR_LOG("timestamp_update_thread create error\n");
+		ERROR_LOG("timestamp_update_func create error\n");
 		return HLE_RET_ERROR;
 	}
 
 	/* Step.7 Stream On */
-	IMP_FrameSource_SetFrameDepth(0, 0);
-
+	//IMP_FrameSource_SetFrameDepth(0, 0);
 	
 	/* Step.b UnBind */
-
 	/* Step.c OSD exit */
-	ret = sample_osd_exit(prHander_timestamp,grpNum);
-	if (ret < 0) {
-		ERROR_LOG( "OSD exit failed\n");
-		return HLE_RET_ERROR;
-	}
-
 	/* Step.d Encoder exit */
-	ret = sample_encoder_exit();
-	if (ret < 0) {
-		ERROR_LOG( "Encoder exit failed\n");
-		return HLE_RET_ERROR;
-	}
-
 	/* Step.e FrameSource exit */
-
-
 	/* Step.f System exit */
-
 
 	return HLE_RET_OK;
 }
+
 
 
 

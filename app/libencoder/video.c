@@ -314,6 +314,36 @@ int video_stop(void)
 
 }
 
+static int encoder_chn_exit(int encChn)
+{
+	int ret;
+	IMPEncoderCHNStat chn_stat;
+	ret = IMP_Encoder_Query(encChn, &chn_stat);
+	if (ret < 0) {
+		IMP_LOG_ERR(TAG, "IMP_Encoder_Query(%d) error: %d\n",
+					encChn, ret);
+		return -1;
+	}
+
+	if (chn_stat.registered) {
+		ret = IMP_Encoder_UnRegisterChn(encChn);
+		if (ret < 0) {
+			IMP_LOG_ERR(TAG, "IMP_Encoder_UnRegisterChn(%d) error: %d\n",
+						encChn, ret);
+			return -1;
+		}
+
+		ret = IMP_Encoder_DestroyChn(encChn);
+		if (ret < 0) {
+			IMP_LOG_ERR(TAG, "IMP_Encoder_DestroyChn(%d) error: %d\n",
+						encChn, ret);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 /*******************************************************************************
 *@ Description    :退出视频编码
 *@ Input          :
@@ -325,16 +355,11 @@ int video_stop(void)
 int video_exit(void)
 {
 	int ret ;
-	/* Step.b UnBind */
-	for (i = 0; i < FS_CHN_NUM; i++) {
-		if (chn[i].enable) {
-			ret = IMP_System_UnBind(&chn[i].framesource_chn, &chn[i].imp_encoder);
-			if (ret < 0) {
-				IMP_LOG_ERR( "UnBind FrameSource channel%d and Encoder failed\n",i);
-				return HLE_RET_ERROR;
-			}
-		}
-	}
+
+	//OSD连就有UnBind操作
+	osd_exit();//需要先退出OSD
+
+	//后边需要修改
 
 	/* Step.c Encoder exit */
 	ret = encoder_chn_exit(ENC_H264_CHANNEL);
@@ -535,5 +560,6 @@ static int jpeg_exit(void)
 	
 	return HLE_RET_OK;
 }
+
 
 
