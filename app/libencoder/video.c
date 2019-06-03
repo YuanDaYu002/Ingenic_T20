@@ -114,7 +114,7 @@ int video_init(void)
 			/*---#创建编码 group ------------------------------------------------------------*/
 			ret = IMP_Encoder_CreateGroup(chn[i].index);
 			if (ret < 0) {
-				IMP_LOG_ERR( "IMP_Encoder_CreateGroup(%d) error !\n", i);
+				ERROR_LOG( "IMP_Encoder_CreateGroup(%d) error !\n", i);
 				return HLE_RET_ERROR;
 			}
 
@@ -236,27 +236,115 @@ int video_init(void)
 
 /*******************************************************************************
 *@ Description    :开始视频编码（使能通道）
-*@ Input          :
+*@ Input          :<index>要使能的编码通道
 *@ Output         :
 *@ Return         :成功：HLE_RET_OK(0) ; 失败：HLE_RET_ERROR(-1)
 *@ attention      :
 *******************************************************************************/
-int video_start(void)
+int video_start(int index)
 {
+	if(chn < 0 || chn >= FS_CHN_NUM)
+	{
+		ERROR_LOG("index(%d) is out of range!\n",index);
+		return HLE_RET_ERROR;
+	}
+	
 	int ret = 0, i = 0;
+	
 	/* Enable channels */
-	for (i = 0; i < FS_CHN_NUM; i++) {
-		if (chn[i].enable) {
-			ret = IMP_FrameSource_EnableChn(chn[i].index);
-			if (ret < 0) {
-				ERROR_LOG("IMP_FrameSource_EnableChn(%d) error: %d\n", ret, chn[i].index);
-				return HLE_RET_ERROR;
-			}
+	if (chn[i].enable) 
+	{
+		ret = IMP_FrameSource_EnableChn(chn[i].index);
+		if (ret < 0) 
+		{
+			ERROR_LOG("IMP_FrameSource_EnableChn(%d) error: %d\n", ret, chn[i].index);
+			return HLE_RET_ERROR;
 		}
 	}
+
 	return HLE_RET_OK;
 
 }
+
+/*******************************************************************************
+*@ Description    :
+*@ Input          :<args>编码通道的编号（通道号）
+*@ Output         :
+*@ Return         :
+*@ attention      :
+*******************************************************************************/
+void *get_h264_stream_func(void *args)
+{
+	pthread_detach(pthread_self());
+	
+	int i, j, ret;
+	char stream_path[64];
+
+	i = (int ) (*((int*)args));
+
+	video_start(i);//开始视频编码
+
+	ret = IMP_Encoder_StartRecvPic(i);
+	if (ret < 0) {
+		ERROR_LOG("IMP_Encoder_StartRecvPic(%d) failed\n", i);
+		return ((void *)-1);
+	}
+
+	/*---#DEBUG------------------------------------------------------------*/
+	sprintf(stream_path, "%s/stream-%d.h264",
+			STREAM_FILE_PATH_PREFIX, i);
+
+	DEBUG_LOG("Open Stream file %s ", stream_path);
+	int stream_fd = open(stream_path, O_RDWR | O_CREAT | O_TRUNC, 0777);
+	if (stream_fd < 0) {
+		ERROR_LOG( "failed: %s\n", strerror(errno));
+		return ((void *)-1);
+	}
+	DEBUG_LOG( "OK\n");
+
+	for (j = 0; j < NR_FRAMES_TO_SAVE; j++) 
+	{
+		ret = IMP_Encoder_PollingStream(i, 1000);
+		if (ret < 0) 
+		{
+			ERROR_LOG( "Polling stream timeout\n");
+			continue;
+		}
+
+		IMPEncoderStream stream;
+		/* Get H264 Stream */
+		ret = IMP_Encoder_GetStream(i, &stream, 1);
+		if (ret < 0) 
+		{
+			ERROR_LOG( "IMP_Encoder_GetStream() failed\n");
+			return ((void *)-1);
+		}
+		//DEBUG_LOG( "i=%d, stream.packCount=%d, stream.h264RefType=%d\n", i, stream.packCount, stream.h264RefType);
+
+		ret = save_stream(stream_fd, &stream);
+		if (ret < 0) 
+		{
+			close(stream_fd);
+			return ((void *)ret);
+		}
+
+		IMP_Encoder_ReleaseStream(i, &stream);
+	}
+
+	close(stream_fd);
+		
+	ret = IMP_Encoder_StopRecvPic(i);
+	if (ret < 0) {
+		ERROR_LOG( "IMP_Encoder_StopRecvPic() failed\n");
+		return ((void *)-1);
+	}
+
+	video_stop();//停止视频编码
+	
+	pthread_exit(0) ;
+}
+
+
 
 /*******************************************************************************
 *@ Description    :创建线程获取编码视频帧
@@ -280,11 +368,6 @@ int video_get_h264_stream_task(void)
 		}
 	}
 
-	for (i = 0; i < FS_CHN_NUM; i++) {
-		if (chn[i].enable) {
-			pthread_join(tid[i],NULL);
-		}
-	}
 
 	return HLE_RET_OK;
 }
@@ -320,7 +403,7 @@ static int encoder_chn_exit(int encChn)
 	IMPEncoderCHNStat chn_stat;
 	ret = IMP_Encoder_Query(encChn, &chn_stat);
 	if (ret < 0) {
-		IMP_LOG_ERR(TAG, "IMP_Encoder_Query(%d) error: %d\n",
+		ERROR_LOG( "IMP_Encoder_Query(%d) error: %d\n",
 					encChn, ret);
 		return -1;
 	}
@@ -328,14 +411,14 @@ static int encoder_chn_exit(int encChn)
 	if (chn_stat.registered) {
 		ret = IMP_Encoder_UnRegisterChn(encChn);
 		if (ret < 0) {
-			IMP_LOG_ERR(TAG, "IMP_Encoder_UnRegisterChn(%d) error: %d\n",
+			ERROR_LOG( "IMP_Encoder_UnRegisterChn(%d) error: %d\n",
 						encChn, ret);
 			return -1;
 		}
 
 		ret = IMP_Encoder_DestroyChn(encChn);
 		if (ret < 0) {
-			IMP_LOG_ERR(TAG, "IMP_Encoder_DestroyChn(%d) error: %d\n",
+			ERROR_LOG( "IMP_Encoder_DestroyChn(%d) error: %d\n",
 						encChn, ret);
 			return -1;
 		}
@@ -355,9 +438,6 @@ static int encoder_chn_exit(int encChn)
 int video_exit(void)
 {
 	int ret ;
-
-	//OSD连就有UnBind操作
-	osd_exit();//需要先退出OSD
 
 	//后边需要修改
 
@@ -404,10 +484,10 @@ static int save_stream(int fd, IMPEncoderStream *stream)
 		ret = write(fd, (void *)stream->pack[i].virAddr,
 					stream->pack[i].length);
 		if (ret != stream->pack[i].length) {
-			ERROR_LOG(TAG, "stream write error:%s\n", strerror(errno));
+			ERROR_LOG( "stream write error:%s\n", strerror(errno));
 			return -1;
 		}
-		//DEBUG_LOG(TAG, "stream->pack[%d].dataType=%d\n", i, ((int)stream->pack[i].dataType.h264Type));
+		//DEBUG_LOG( "stream->pack[%d].dataType=%d\n", i, ((int)stream->pack[i].dataType.h264Type));
 	}
 
 	return 0;
@@ -560,6 +640,7 @@ static int jpeg_exit(void)
 	
 	return HLE_RET_OK;
 }
+
 
 
 

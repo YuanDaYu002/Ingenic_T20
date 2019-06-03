@@ -15,7 +15,13 @@ extern struct chn_conf chn[];
 int grpNum[2] = {0,1}; 		//OSD 组编号数组	
 IMPRgnHandle prHander_timestamp[2];//OSD 时间戳句柄数组
 
-
+/*******************************************************************************
+*@ Description    :OSD初始化函数
+*@ Input          :
+*@ Output         :
+*@ Return         :成功：HLE_RET_OK(0) ; 失败：HLE_RET_ERROR(-1)
+*@ attention      :
+*******************************************************************************/
 int osd_init(void)
 {
 	int ret,i;
@@ -75,19 +81,6 @@ int osd_init(void)
 			return -1;
 		}
 		
-		/*---#Bind 数据源通道--->OSD叠加--->编码通道------------------------------------------------------------*/
-		ret = IMP_System_Bind(&chn[i].framesource_chn, &chn[i].osdcell);
-		if (ret < 0) {
-			ERROR_LOG("Bind FrameSource channel[%d] and OSD[%d] failed\n",i,i);
-			return -1;
-		}
-
-		ret = IMP_System_Bind(&chn[i].osdcell, &chn[i].imp_encoder);
-		if (ret < 0) {
-			ERROR_LOG("Bind OSD[%d] and Encoder[%d] failed! \n",i,i);
-			return -1;
-		}
-	
 			
 	}
 
@@ -96,24 +89,20 @@ int osd_init(void)
 
 }
 
-
+/*******************************************************************************
+*@ Description    :OSD退出
+*@ Input          :
+*@ Output         :
+*@ Return         :成功：HLE_RET_OK(0) ; 失败：HLE_RET_ERROR(-1)
+*@ attention      :
+*******************************************************************************/
 int osd_exit(void)
 {
 	int ret,i;
 	for (i = 0; i <  FS_CHN_NUM; i++)
 	{
 		/* Step.b UnBind */
-		ret = IMP_System_UnBind(&chn[i].osdcell, &chn[i].imp_encoder);
-		if (ret < 0) {
-			ERROR_LOG( "UnBind OSD and Encoder failed\n");
-			return HLE_RET_ERROR;
-		}
 
-		ret = IMP_System_UnBind(&chn[i].framesource_chn, &chn[i].osdcell);
-		if (ret < 0) {
-			ERROR_LOG( "UnBind FrameSource and OSD failed\n");
-			return HLE_RET_ERROR;
-		}
 
 		ret = IMP_OSD_ShowRgn(prHander_timestamp[i], grpNum[i], 0);
 		if (ret < 0) {
@@ -147,7 +136,7 @@ int osd_exit(void)
 *@ Description    :打开OSD显示开关
 *@ Input          :
 *@ Output         :
-*@ Return         :
+*@ Return         :成功：HLE_RET_OK(0) ; 失败：HLE_RET_ERROR(-1)
 *@ attention      :
 *******************************************************************************/
 static int osd_show(void)
@@ -166,6 +155,13 @@ static int osd_show(void)
 	return HLE_RET_OK;
 }
 
+/*******************************************************************************
+*@ Description    :OSD(时间戳)更新函数
+*@ Input          :
+*@ Output         :
+*@ Return         :成功：HLE_RET_OK(0) ; 失败：HLE_RET_ERROR(-1)
+*@ attention      :
+*******************************************************************************/
 static void *timestamp_update_func(void *args)
 {
 	pthread_detach(pthread_self());
@@ -206,7 +202,7 @@ static void *timestamp_update_func(void *args)
 		return NULL;
 	}
 
-	while(1) 
+	while(1) //可以加入OSD开关条件
 	{
 			int penpos_t = 0;
 			int fontadv = 0;
@@ -275,9 +271,16 @@ static void *timestamp_update_func(void *args)
 			sleep(1); //时间戳1s更新一次
 	}
 
-	return NULL;
+	pthread_exit(0);
 }
 
+/*******************************************************************************
+*@ Description    :创建OSD时间戳更新线程
+*@ Input          :
+*@ Output         :
+*@ Return         :成功：HLE_RET_OK(0) ; 失败：HLE_RET_ERROR(-1)
+*@ attention      :
+*******************************************************************************/
 int timestamp_update_task(void)
 {
 	int ret;
@@ -290,17 +293,9 @@ int timestamp_update_task(void)
 		return HLE_RET_ERROR;
 	}
 
-	/* Step.7 Stream On */
-	//IMP_FrameSource_SetFrameDepth(0, 0);
-	
-	/* Step.b UnBind */
-	/* Step.c OSD exit */
-	/* Step.d Encoder exit */
-	/* Step.e FrameSource exit */
-	/* Step.f System exit */
-
 	return HLE_RET_OK;
 }
+
 
 
 

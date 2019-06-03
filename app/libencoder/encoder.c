@@ -37,32 +37,32 @@ int system_init(void)
 
 	ret = IMP_ISP_AddSensor(&sensor_info);
 	if(ret < 0){
-		ERROR_LOG(TAG, "failed to AddSensor\n");
+		ERROR_LOG( "failed to AddSensor\n");
 		return HLE_RET_ERROR;
 	}
 
 	ret = IMP_ISP_EnableSensor();
 	if(ret < 0){
-		ERROR_LOG(TAG, "failed to EnableSensor\n");
+		ERROR_LOG( "failed to EnableSensor\n");
 		return HLE_RET_ERROR;
 	}
 
 	ret = IMP_System_Init();
 	if(ret < 0){
-		ERROR_LOG(TAG, "IMP_System_Init failed\n");
+		ERROR_LOG( "IMP_System_Init failed\n");
 		return HLE_RET_ERROR;
 	}
 
 	/* enable turning, to debug graphics */
 	ret = IMP_ISP_EnableTuning();
 	if(ret < 0){
-		ERROR_LOG(TAG, "IMP_ISP_EnableTuning failed\n");
+		ERROR_LOG( "IMP_ISP_EnableTuning failed\n");
 		return HLE_RET_ERROR;
 	}
 
     ret = IMP_ISP_Tuning_SetSensorFPS(SENSOR_FRAME_RATE_NUM, SENSOR_FRAME_RATE_DEN);
     if (ret < 0){
-        ERROR_LOG(TAG, "failed to set sensor fps\n");
+        ERROR_LOG( "failed to set sensor fps\n");
         return HLE_RET_ERROR;
     }
 
@@ -109,23 +109,13 @@ int system_exit(void)
 		return -1;
 	}
 
-	DEBUG_LOG(TAG, " sample_system_exit success\n");
+	DEBUG_LOG( " sample_system_exit success\n");
 
 	return 0;
 }
 
 
-int Vencoder_init(void)
-{
 
-}
-
-int Aencoder_init(void)
-{
-
-}
-
-/*---#对外接口部分------------------------------------------------------------*/
 
 /*******************************************************************************
 *@ Description    :编码系统初始化
@@ -150,14 +140,31 @@ int encoder_system_init(void)
 		return -1;
 	}
 	
-	/*Bind 建立绑定关系， 数据源通道--->OSD叠加--->编码通道 放在最后初始化的 osd_init 中了
-	  所以，osd的初始化必须位于最后。
-	*/
+
 	ret = osd_init();
 	if (ret < 0) {
 		ERROR_LOG("OSD init failed\n");
 		return -1;
 	}
+
+	for (i = 0; i <  FS_CHN_NUM; i++)
+	{
+		/*---#Bind 数据源通道--->OSD叠加--->编码通道------------------------------------------------------------*/
+		ret = IMP_System_Bind(&chn[i].framesource_chn, &chn[i].osdcell);
+		if (ret < 0) {
+			ERROR_LOG("Bind FrameSource channel[%d] and OSD[%d] failed\n",i,i);
+			return -1;
+		}
+
+		ret = IMP_System_Bind(&chn[i].osdcell, &chn[i].imp_encoder);
+		if (ret < 0) {
+			ERROR_LOG("Bind OSD[%d] and Encoder[%d] failed! \n",i,i);
+			return -1;
+		}
+	
+
+	}
+
 	
 	return 0;
 	
@@ -172,11 +179,31 @@ int encoder_system_init(void)
 *******************************************************************************/
 int encoder_system_exit(void)
 {
+	int ret;
+	for (i = 0; i <  FS_CHN_NUM; i++) 
+	{
+		/* UnBind */
+		ret = IMP_System_UnBind(&chn[i].osdcell, &chn[i].imp_encoder);
+		if (ret < 0) {
+			ERROR_LOG( "UnBind OSD and Encoder failed\n");
+			return HLE_RET_ERROR;
+		}
+
+		ret = IMP_System_UnBind(&chn[i].framesource_chn, &chn[i].osdcell);
+		if (ret < 0) {
+			ERROR_LOG( "UnBind FrameSource and OSD failed\n");
+			return HLE_RET_ERROR;
+		}
+	
+	}
+
+	osd_exit();//需要先退出OSD,再退出video(venc)
 	video_exit();
 	
 	system_exit();
 	
 	
 }
+
 
 
