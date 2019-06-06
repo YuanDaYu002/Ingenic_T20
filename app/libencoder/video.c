@@ -6,16 +6,92 @@
 * @brief:  视频编码相关函数
 * @attention:
 ***************************************************************************/
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <errno.h>
+
+#include "imp_common.h"
 #include "imp_encoder.h"
 
-#include "sample-common.h"
 #include "typeport.h"
 #include "video.h"
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 
 /*---#编码Channel码率控制器模式---------------------------------------------------*/
 static const int S_RC_METHOD = ENC_RC_MODE_SMART;
 
 /*---#编码通道参数配置------------------------------------------------------------*/
+#if 1
+struct chn_conf chn[FS_CHN_NUM] = {
+	{	CH0_INDEX, 		//main channel
+		CHN0_EN,
+		{   //fs_chn_attr
+			SENSOR_WIDTH,				//图片宽度
+			SENSOR_HEIGHT,				//图片高度
+			PIX_FMT_NV12, 				//图片格式
+			/*图片裁剪属性*/
+			{	//crop
+				CROP_EN, 				//使能
+				0,						//裁剪左起始点
+				0,						//裁剪上起始点
+				SENSOR_WIDTH,			//图片裁剪宽度
+				SENSOR_HEIGHT,			//图片裁剪高度
+			},
+			/*图片缩放属性*/
+			{	//scaler	
+				0,						//不使能
+			},
+			VENC_FRAME_RATE_NUM, 		//通道的输出帧率分子
+			VENC_FRAME_RATE_DEN,		//通道的输出帧率分母
+			3,							//video buffer 数量
+			FS_PHY_CHANNEL, 			//通道类型
+
+		},
+		{ DEV_ID_FS, 0, 0},				//framesource_chn  视频源{设备ID，组ID，输出ID}
+		{ DEV_ID_ENC, 0, 0},			//imp_encoder 编码  	{设备ID，组ID，输出ID}
+		{DEV_ID_OSD, 0, 0},				//osdcell	{设备ID，组ID，输出ID}
+	},
+	{
+		CH1_INDEX,			//second channel
+		CHN1_EN,
+		{	//fs_chn_attr
+			SENSOR_WIDTH_SECOND,		//图片宽度
+			SENSOR_HEIGHT_SECOND,		//图片高度
+			PIX_FMT_NV12,					//图片格式
+			/*图片裁剪属性*/
+			{	//crop
+				CROP_EN,					//使能
+				0,							//裁剪左起始点
+				0,							//裁剪上起始点
+				SENSOR_WIDTH,				//图片裁剪宽度
+				SENSOR_HEIGHT,			//图片裁剪高度
+			},
+			/*图片缩放属性*/
+			{	//scaler
+				1,						//使能
+				SENSOR_WIDTH_SECOND,	//缩放后的图片宽度
+				SENSOR_HEIGHT_SECOND,//缩放后的图片高度
+			},
+			VENC_FRAME_RATE_NUM,	//通道的输出帧率分子
+			VENC_FRAME_RATE_DEN,	//通道的输出帧率分母
+			3,								//video buffer 数量
+			FS_PHY_CHANNEL,					//通道类型
+		},
+		{ DEV_ID_FS, 1, 0},		//framesource_chn 视频源{设备ID，组ID，输出ID}
+		{ DEV_ID_ENC, 1, 0},			//imp_encoder 编码	{设备ID，组ID，输出ID}
+		{DEV_ID_OSD, 1, 0},				//osdcell OSD	{设备ID，组ID，输出ID}
+	}
+};
+
+#else
 struct chn_conf chn[FS_CHN_NUM] = {
 	{
 		.index = CH0_INDEX, 		//main channel
@@ -74,8 +150,29 @@ struct chn_conf chn[FS_CHN_NUM] = {
 		.osdcell = {DEV_ID_OSD, 1, 0},				//OSD	{设备ID，组ID，输出ID}
 	},
 };
+#endif
 
-			
+
+static int jpeg_exit(void);
+
+	
+static int save_stream(int fd, IMPEncoderStream *stream)
+{
+	unsigned int ret;
+	int i, nr_pack = stream->packCount;
+
+	for (i = 0; i < nr_pack; i++) {
+		ret = write(fd, (void *)stream->pack[i].virAddr,
+					stream->pack[i].length);
+		if (ret != stream->pack[i].length) {
+			ERROR_LOG( "stream write error:%s\n", strerror(errno));
+			return -1;
+		}
+		//DEBUG_LOG( "stream->pack[%d].dataType=%d\n", i, ((int)stream->pack[i].dataType.h264Type));
+	}
+
+	return 0;
+}
 
 
 /*******************************************************************************
@@ -85,6 +182,7 @@ struct chn_conf chn[FS_CHN_NUM] = {
 *@ Return         :成功：HLE_RET_OK(0) ; 失败：HLE_RET_ERROR(-1)
 *@ attention      :
 *******************************************************************************/
+int jpeg_init(void);
 int video_init(void)
 {
 	int i, ret;
@@ -227,7 +325,7 @@ int video_init(void)
 	ret = jpeg_init();
 	if (ret < 0) {
 		ERROR_LOG("jpeg init failed\n");
-		return HLE_RTE_ERROR;
+		return HLE_RET_ERROR;
 	}
 
 	return HLE_RET_OK;
@@ -243,7 +341,7 @@ int video_init(void)
 *******************************************************************************/
 int video_start(int index)
 {
-	if(chn < 0 || chn >= FS_CHN_NUM)
+	if(index < 0 || index>= FS_CHN_NUM)
 	{
 		ERROR_LOG("index(%d) is out of range!\n",index);
 		return HLE_RET_ERROR;
@@ -266,6 +364,7 @@ int video_start(int index)
 
 }
 
+
 /*******************************************************************************
 *@ Description    :
 *@ Input          :<args>编码通道的编号（通道号）
@@ -273,6 +372,7 @@ int video_start(int index)
 *@ Return         :
 *@ attention      :
 *******************************************************************************/
+int video_stop(void);
 void *get_h264_stream_func(void *args)
 {
 	pthread_detach(pthread_self());
@@ -437,7 +537,7 @@ static int encoder_chn_exit(int encChn)
 *******************************************************************************/
 int video_exit(void)
 {
-	int ret ;
+	int ret ,i;
 
 	//后边需要修改
 
@@ -476,22 +576,7 @@ int video_exit(void)
 	return HLE_RET_OK;
 }
 
-static int save_stream(int fd, IMPEncoderStream *stream)
-{
-	int ret, i, nr_pack = stream->packCount;
 
-	for (i = 0; i < nr_pack; i++) {
-		ret = write(fd, (void *)stream->pack[i].virAddr,
-					stream->pack[i].length);
-		if (ret != stream->pack[i].length) {
-			ERROR_LOG( "stream write error:%s\n", strerror(errno));
-			return -1;
-		}
-		//DEBUG_LOG( "stream->pack[%d].dataType=%d\n", i, ((int)stream->pack[i].dataType.h264Type));
-	}
-
-	return 0;
-}
 
 
 
@@ -554,7 +639,7 @@ int jpeg_init(void)
 *******************************************************************************/
 int jpeg_get_one_snap(unsigned int index)
 {
-	int i, ret;
+	int  ret;
 	char snap_path[64];
 	
 	if(index < 0 || index >= FS_CHN_NUM){
@@ -584,7 +669,7 @@ int jpeg_get_one_snap(unsigned int index)
 		ret = IMP_Encoder_PollingStream(2 + index, 1000);
 		if (ret < 0) {
 			ERROR_LOG( "Polling stream timeout\n");
-			continue;
+			return HLE_RET_ERROR;
 		}
 
 		IMPEncoderStream stream;
@@ -640,6 +725,17 @@ static int jpeg_exit(void)
 	
 	return HLE_RET_OK;
 }
+
+
+
+
+#ifdef __cplusplus
+}
+#endif
+
+
+
+
 
 
 

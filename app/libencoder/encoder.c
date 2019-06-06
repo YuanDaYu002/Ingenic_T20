@@ -6,9 +6,21 @@
 * @brief:  编码相关函数
 * @attention:
 ***************************************************************************/
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+#include <string.h>
+
+#include "imp_isp.h"
+#include "imp_system.h"
+#include "video.h"
+#include "osd.h"
+#include "typeport.h"
 
 
-
+extern struct chn_conf chn[FS_CHN_NUM];
 
 /*******************************************************************************
 *@ Description    :IMP系统初始化
@@ -18,7 +30,7 @@
 *@ attention      :
 *******************************************************************************/
 IMPSensorInfo sensor_info;
-int system_init(void)
+int T20_system_init(void)
 {
 	int ret = 0;
 	memset(&sensor_info, 0, sizeof(IMPSensorInfo));
@@ -78,7 +90,7 @@ int system_init(void)
 *@ Return         :
 *@ attention      :
 *******************************************************************************/
-int system_exit(void)
+int T20_system_exit(void)
 {
 	int ret = 0;
 
@@ -128,7 +140,7 @@ int encoder_system_init(void)
 {
 	int ret,i;
 	
-	ret = system_init();
+	ret = T20_system_init();
 	if (ret < 0) {
 		ERROR_LOG("jpeg init failed\n");
 		return -1;
@@ -179,7 +191,7 @@ int encoder_system_init(void)
 *******************************************************************************/
 int encoder_system_exit(void)
 {
-	int ret;
+	int ret,i;
 	for (i = 0; i <  FS_CHN_NUM; i++) 
 	{
 		/* UnBind */
@@ -200,10 +212,17 @@ int encoder_system_exit(void)
 	osd_exit();//需要先退出OSD,再退出video(venc)
 	video_exit();
 	
-	system_exit();
+	T20_system_exit();
 	
+	return HLE_RET_OK;
 	
 }
+
+#ifdef __cplusplus
+}
+#endif
+
+
 
 
 

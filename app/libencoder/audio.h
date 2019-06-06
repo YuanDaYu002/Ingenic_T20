@@ -8,11 +8,22 @@
 ***************************************************************************/
 #ifndef _AUDIO_H
 #define _AUDIO_H
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+
+
+
 	 
 	 
 	 
 	 
-	 
+#ifdef __cplusplus
+}
+#endif	 
 	 
 #endif
 

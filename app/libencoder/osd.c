@@ -6,11 +6,30 @@
 * @brief: OSD操作相关函数
 * @attention:
 ***************************************************************************/
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#ifdef SUPPORT_RGB555LE
+#include "bgramapinfo_rgb555le.h"
+#else
+#include "bgramapinfo.h"
+#endif
+
+#include "imp_osd.h"
 #include "osd.h"
+#include "video.h"
+#include "typeport.h"
+
 
 #define OSD_LETTER_NUM 20
 
-extern struct chn_conf chn[];
+extern struct chn_conf chn[FS_CHN_NUM];
 
 int grpNum[2] = {0,1}; 		//OSD 组编号数组	
 IMPRgnHandle prHander_timestamp[2];//OSD 时间戳句柄数组
@@ -30,19 +49,19 @@ int osd_init(void)
 	{
 		if (IMP_OSD_CreateGroup(grpNum[i]) < 0) {
 			ERROR_LOG("IMP_OSD_CreateGroup(%d) error !\n",i);
-			return -1;
+			return HLE_RET_ERROR;
 		}
 
 		prHander_timestamp[i] = IMP_OSD_CreateRgn(NULL);
 		if (prHander_timestamp[i] == INVHANDLE) {
 			ERROR_LOG("IMP_OSD_CreateRgn TimeStamp[%d] error !\n",i);
-			return -1;
+			return HLE_RET_ERROR;
 		}
 	
 		ret = IMP_OSD_RegisterRgn(prHander_timestamp[i], grpNum[i], NULL);
 		if (ret < 0) {
 			ERROR_LOG("IVS IMP_OSD_RegisterRgn[%d] failed\n",i);
-			return -1;
+			return HLE_RET_ERROR;
 		}
 
 		/*---#设置时间戳OSD区域属性------------------------------------------------------------*/
@@ -71,21 +90,21 @@ int osd_init(void)
 		ret = IMP_OSD_SetRgnAttr(prHander_timestamp[i], &rAttrFont);
 		if (ret < 0) {
 			ERROR_LOG( "IMP_OSD_SetRgnAttr TimeStamp[%d] error !\n",i);
-			return -1;
+			return HLE_RET_ERROR;
 		}
 
 		/*---#开始OSD组区域的显示--------------------------------------------------------------------*/
 		ret = IMP_OSD_Start(grpNum[i]);
 		if (ret < 0) {
 			ERROR_LOG( "IMP_OSD_Start TimeStamp[%d] error !\n",i);
-			return -1;
+			return HLE_RET_ERROR;
 		}
 		
 			
 	}
 
 
-	return 0;	
+	return HLE_RET_OK;	
 
 }
 
@@ -106,12 +125,12 @@ int osd_exit(void)
 
 		ret = IMP_OSD_ShowRgn(prHander_timestamp[i], grpNum[i], 0);
 		if (ret < 0) {
-			IMP_LOG_ERR("IMP_OSD_ShowRgn close timeStamp error\n");
+			ERROR_LOG("IMP_OSD_ShowRgn close timeStamp error\n");
 		}
 
 		ret = IMP_OSD_UnRegisterRgn(prHander_timestamp[i], grpNum[i]);
 		if (ret < 0) {
-			IMP_LOG_ERR("IMP_OSD_UnRegisterRgn timeStamp error\n");
+			ERROR_LOG("IMP_OSD_UnRegisterRgn timeStamp error\n");
 		}
 
 		IMP_OSD_DestroyRgn(prHander_timestamp[i]);
@@ -119,8 +138,8 @@ int osd_exit(void)
 
 		ret = IMP_OSD_DestroyGroup(grpNum[i]);
 		if (ret < 0) {
-			IMP_LOG_ERR("IMP_OSD_DestroyGroup(0) error\n");
-			return -1;
+			ERROR_LOG("IMP_OSD_DestroyGroup(0) error\n");
+			return HLE_RET_ERROR;
 		}
 	
 	}
@@ -174,17 +193,17 @@ static void *timestamp_update_func(void *args)
 	struct tm *currDate;
 	unsigned i = 0, j = 0, k = 0;
 	void *dateData = NULL;
-	uint32_t *data = NULL;
+	//uint32_t *data = NULL;
 	uint32_t *timeStampData[2] = {0}; //OSD字库数据指针
 	
 	IMPOSDRgnAttrData rAttrData;
 
 #ifdef SUPPORT_RGB555LE
-	timeStampData[0] = malloc(OSD_LETTER_NUM * OSD_REGION_HEIGHT * OSD_REGION_WIDTH * sizeof(uint16_t));
-	timeStampData[1] = malloc(OSD_LETTER_NUM * OSD_REGION_HEIGHT * OSD_REGION_WIDTH * sizeof(uint16_t));
+	timeStampData[0] = (uint32_t *)malloc(OSD_LETTER_NUM * OSD_REGION_HEIGHT * OSD_REGION_WIDTH * sizeof(uint16_t));
+	timeStampData[1] = (uint32_t *)malloc(OSD_LETTER_NUM * OSD_REGION_HEIGHT * OSD_REGION_WIDTH * sizeof(uint16_t));
 #else
-	timeStampData[0] = malloc(OSD_LETTER_NUM * OSD_REGION_HEIGHT * OSD_REGION_WIDTH * sizeof(uint32_t));
-	timeStampData[1] = malloc(OSD_LETTER_NUM * OSD_REGION_HEIGHT * OSD_REGION_WIDTH * sizeof(uint32_t));
+	timeStampData[0] = (uint32_t *)malloc(OSD_LETTER_NUM * OSD_REGION_HEIGHT * OSD_REGION_WIDTH * sizeof(uint32_t));
+	timeStampData[1] = (uint32_t *)malloc(OSD_LETTER_NUM * OSD_REGION_HEIGHT * OSD_REGION_WIDTH * sizeof(uint32_t));
 #endif
 
 	if (timeStampData[0] == NULL || timeStampData[1] == NULL) 
@@ -192,14 +211,14 @@ static void *timestamp_update_func(void *args)
 		ERROR_LOG( "malloc timeStampData error\n");
 		if(timeStampData[0]) free(timeStampData[0]);
 		if(timeStampData[1]) free(timeStampData[1]);
-		return HLE_RET_ERROR;
+		pthread_exit(0);
 	}
 	
 
 	ret = osd_show();
 	if (ret < 0) {
 		ERROR_LOG( "OSD show error\n");
-		return NULL;
+		pthread_exit(0);
 	}
 
 	while(1) //可以加入OSD开关条件
@@ -295,6 +314,13 @@ int timestamp_update_task(void)
 
 	return HLE_RET_OK;
 }
+
+
+
+#ifdef __cplusplus
+}
+#endif
+
 
 
 

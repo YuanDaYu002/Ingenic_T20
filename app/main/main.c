@@ -1,12 +1,23 @@
- 
-/***************************************************************************
+ /***************************************************************************
 * @file:main.c 
 * @author:   
 * @date:  5,29,2019
 * @brief:  工程总入口文件
 * @attention:
 ***************************************************************************/
-int main(int argc,char** argv)
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+#include <unistd.h>
+
+#include "video.h"
+#include "osd.h"
+#include "encoder.h"
+
+
+int main(int argc,char*argv[])
 {
 	encoder_system_init();
 	
@@ -23,6 +34,12 @@ int main(int argc,char** argv)
 	encoder_system_exit();
 	return 0;
 }
+
+#ifdef __cplusplus
+}
+#endif
+
+
 
 
 

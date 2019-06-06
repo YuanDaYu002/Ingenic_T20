@@ -1,0 +1,76 @@
+
+################################################################################
+#注意：
+#	在使用ld链接器手动链接时遇到不少问题，推荐直接使用gcc编译链接的方式编译
+#	（本套参数 + makefile使用的是gcc方式）
+################################################################################
+
+export MY_PATH=$(shell pwd)/..
+export DEV_PATH=$(MY_PATH)/..
+export SDK_PATH=$(DEV_PATH)/Ingenic-SDK-T10T20-3.12.0-20180320
+export MY_OUT=$(MY_PATH)/out
+export MY_LIBOUT=$(MY_OUT)/lib
+export MY_OBJOUT=$(MY_OUT)/obj
+
+CONFIG_UCLIBC_BUILD = y		
+CROSS_COMPILE ?= mips-linux-gnu-
+CC = $(CROSS_COMPILE)gcc
+CPLUSPLUS = $(CROSS_COMPILE)g++
+LD = $(CROSS_COMPILE)ld
+AR = $(CROSS_COMPILE)ar cr
+STRIP = $(CROSS_COMPILE)strip
+OBJDUMP = $(CROSS_COMPILE)objdump
+
+### CFLAGS =====================================================================
+CFLAGS =  -O2 -Wall -march=mips32r2
+CFLAGS +=  -Wl,-gc-sections   
+
+ifeq ($(CONFIG_UCLIBC_BUILD), y)
+	CFLAGS += -muclibc  
+	SDK_LIB_DIR = $(SDK_PATH)/lib/uclibc
+else
+	SDK_LIB_DIR = $(SDK_PATH)/lib/glibc
+	#默认link的libc即为glibc
+endif 
+
+
+### LDFLAGS =====================================================================
+LDFLAGS = -L$(MY_LIBOUT)
+LDFLAGS += -L$(MY_PATH)/3rdlibs
+
+NOT_USE_SOFT_FLOAT = y
+ifeq ($(NOT_USE_SOFT_FLOAT), y)	#使用LD链接程序时需要手动链接libgcc.a库
+	LDFLAGS += -L$(MY_PATH)/3rdlibs/uclibc	# ----libgcc.a
+else
+	LDFLAGS += -L$(MY_PATH)/3rdlibs/uclibc/soft-float  #------libgcc.a
+endif
+
+ifeq ($(CONFIG_UCLIBC_BUILD), y)
+	#LDFLAGS += -muclibc #该参数属于 gcc ，LD无法识别
+else	
+	#默认link的libc即为glibc
+endif
+
+LDFLAGS += -L$(SDK_LIB_DIR)
+
+### INC_FLAGS =====================================================================
+INC_FLAGS = -I$(SDK_PATH)/include/imp
+INC_FLAGS += -I$(SDK_PATH)/include/sysutils
+INC_FLAGS += -I$(MY_PATH)/include
+INC_FLAGS += -I$(MY_PATH)/3rdinc
+
+###================================================================================
+SENSOR_TYPE ?=
+SENSOR_LIBS =
+
+#SENSOR_SETTINGS_DIR = $(SDK_PATH)/res/sensor_settings
+###================================================================================
+
+
+### LIBS ==========================================================================
+SDK_LIB = -Wl,-Bstatic -limp  -lsysutils  -lalog  -lgcc  # LD链接器的使用方式（有问题）
+#SDK_LIB =  $(SDK_LIB_DIR)/libimp.a  $(SDK_LIB_DIR)/libsysutils.a  $(SDK_LIB_DIR)/libalog.a 
+LIBS = $(SDK_LIB) -Wl,-Bdynamic -lpthread -ldl -lm  -lc  -lrt 
+LIBS += -Wl,-Bdynamic   
+
+
