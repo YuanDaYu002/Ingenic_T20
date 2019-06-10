@@ -26,9 +26,9 @@ extern "C"
 /*---#sensor型号参数----------------------------------------------------------------*/
 #define SENSOR_JXF22  			
 #if defined SENSOR_JXF22
-#define SENSOR_NAME				"jxf22"
+#define SENSOR_NAME				"sc2235"
 #define SENSOR_CUBS_TYPE        TX_SENSOR_CONTROL_INTERFACE_I2C
-#define SENSOR_I2C_ADDR			0x40
+#define SENSOR_I2C_ADDR			0x30  //0x40
 #define SENSOR_WIDTH			1920  //视频主分辨率（和sensor属性一致）
 #define SENSOR_HEIGHT			1080
 #define CHN0_EN                 1
@@ -39,7 +39,7 @@ extern "C"
 #define SENSOR_WIDTH_SECOND		640	 //视频次分辨率
 #define SENSOR_HEIGHT_SECOND	360
 
-#define NR_FRAMES_TO_SAVE		1000
+#define NR_FRAMES_TO_SAVE		200
 #define STREAM_BUFFER_SIZE		(1 * 1024 * 1024)
 
 #define ENC_H264_CHANNEL		0

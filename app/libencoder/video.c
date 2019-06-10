@@ -15,6 +15,7 @@
 
 #include "imp_common.h"
 #include "imp_encoder.h"
+#include "imp_log.h"
 
 #include "typeport.h"
 #include "video.h"
@@ -334,20 +335,20 @@ int video_init(void)
 
 /*******************************************************************************
 *@ Description    :开始视频编码（使能通道）
-*@ Input          :<index>要使能的编码通道
+*@ Input          :<i>要使能的编码通道
 *@ Output         :
 *@ Return         :成功：HLE_RET_OK(0) ; 失败：HLE_RET_ERROR(-1)
 *@ attention      :
 *******************************************************************************/
-int video_start(int index)
+int video_start(int i)
 {
-	if(index < 0 || index>= FS_CHN_NUM)
+	if(i < 0 || i>= FS_CHN_NUM)
 	{
-		ERROR_LOG("index(%d) is out of range!\n",index);
+		ERROR_LOG("i(%d) is out of range!\n",i);
 		return HLE_RET_ERROR;
 	}
 	
-	int ret = 0, i = 0;
+	int ret = 0;
 	
 	/* Enable channels */
 	if (chn[i].enable) 
@@ -355,7 +356,7 @@ int video_start(int index)
 		ret = IMP_FrameSource_EnableChn(chn[i].index);
 		if (ret < 0) 
 		{
-			ERROR_LOG("IMP_FrameSource_EnableChn(%d) error: %d\n", ret, chn[i].index);
+			ERROR_LOG("IMP_FrameSource_EnableChn failed! (ret = %d index = %d)\n", ret, chn[i].index);
 			return HLE_RET_ERROR;
 		}
 	}
@@ -372,7 +373,7 @@ int video_start(int index)
 *@ Return         :
 *@ attention      :
 *******************************************************************************/
-int video_stop(void);
+int video_stop(int i);
 void *get_h264_stream_func(void *args)
 {
 	pthread_detach(pthread_self());
@@ -394,7 +395,7 @@ void *get_h264_stream_func(void *args)
 	sprintf(stream_path, "%s/stream-%d.h264",
 			STREAM_FILE_PATH_PREFIX, i);
 
-	DEBUG_LOG("Open Stream file %s ", stream_path);
+	DEBUG_LOG("Open Stream file %s \n", stream_path);
 	int stream_fd = open(stream_path, O_RDWR | O_CREAT | O_TRUNC, 0777);
 	if (stream_fd < 0) {
 		ERROR_LOG( "failed: %s\n", strerror(errno));
@@ -408,9 +409,11 @@ void *get_h264_stream_func(void *args)
 		if (ret < 0) 
 		{
 			ERROR_LOG( "Polling stream timeout\n");
+			//IMP_LOG_ERR("video.c", "Polling stream timeout\n");
 			continue;
 		}
-
+		DEBUG_LOG("polling stream OK!\n");
+		
 		IMPEncoderStream stream;
 		/* Get H264 Stream */
 		ret = IMP_Encoder_GetStream(i, &stream, 1);
@@ -439,7 +442,7 @@ void *get_h264_stream_func(void *args)
 		return ((void *)-1);
 	}
 
-	video_stop();//停止视频编码
+	video_stop(i);//停止视频编码
 	
 	pthread_exit(0) ;
 }
@@ -475,24 +478,24 @@ int video_get_h264_stream_task(void)
 
 /*******************************************************************************
 *@ Description    :暂停视频编码
-*@ Input          :
+*@ Input          :<i>编码通道的index
 *@ Output         :
 *@ Return         :成功：HLE_RET_OK(0) ; 失败：HLE_RET_ERROR(-1)
 *@ attention      :
 *******************************************************************************/
-int video_stop(void)
+int video_stop(int i)
 {
-	int ret = 0, i = 0;
-	/* Enable channels */
-	for (i = 0; i < FS_CHN_NUM; i++) {
-		if (chn[i].enable){
-			ret = IMP_FrameSource_DisableChn(chn[i].index);
-			if (ret < 0) {
-				ERROR_LOG("IMP_FrameSource_DisableChn(%d) error: %d\n", ret, chn[i].index);
-				return HLE_RET_ERROR;
-			}
+	int ret = 0;
+	/* Disable channels */
+	if (chn[i].enable){
+		ret = IMP_FrameSource_DisableChn(chn[i].index);
+		if (ret < 0) {
+			ERROR_LOG("IMP_FrameSource_DisableChn(%d) error: %d\n", ret, chn[i].index);
+			return HLE_RET_ERROR;
 		}
+		DEBUG_LOG("Disable video Chn[%d] OK!\n",i);
 	}
+	
 	return HLE_RET_OK;
 
 }
@@ -657,7 +660,7 @@ int jpeg_get_one_snap(unsigned int index)
 
 		sprintf(snap_path, "%s/snap-%d.jpg",SNAP_FILE_PATH_PREFIX, index);
 
-		ERROR_LOG( "Open Snap file %s ", snap_path);
+		DEBUG_LOG( "Open Snap file : %s \n", snap_path);
 		int snap_fd = open(snap_path, O_RDWR | O_CREAT | O_TRUNC, 0777);
 		if (snap_fd < 0) {
 			ERROR_LOG( "failed: %s\n", strerror(errno));
@@ -668,7 +671,7 @@ int jpeg_get_one_snap(unsigned int index)
 		/* Polling JPEG Snap, set timeout as 1000msec */
 		ret = IMP_Encoder_PollingStream(2 + index, 1000);
 		if (ret < 0) {
-			ERROR_LOG( "Polling stream timeout\n");
+			ERROR_LOG( "jpeg Polling stream timeout\n");
 			return HLE_RET_ERROR;
 		}
 
@@ -732,6 +735,16 @@ static int jpeg_exit(void)
 #ifdef __cplusplus
 }
 #endif
+
+
+
+
+
+
+
+
+
+
 
 
 

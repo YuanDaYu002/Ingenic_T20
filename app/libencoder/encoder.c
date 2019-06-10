@@ -14,6 +14,7 @@ extern "C"
 #include <string.h>
 
 #include "imp_isp.h"
+#include "imp_log.h"
 #include "imp_system.h"
 #include "video.h"
 #include "osd.h"
@@ -50,6 +51,7 @@ int T20_system_init(void)
 	ret = IMP_ISP_AddSensor(&sensor_info);
 	if(ret < 0){
 		ERROR_LOG( "failed to AddSensor\n");
+		//IMP_LOG_ERR("encoder-c", "failed to AddSensor\n");
 		return HLE_RET_ERROR;
 	}
 
@@ -142,13 +144,13 @@ int encoder_system_init(void)
 	
 	ret = T20_system_init();
 	if (ret < 0) {
-		ERROR_LOG("jpeg init failed\n");
+		ERROR_LOG("T20_system_init\n");
 		return -1;
 	}
 		
 	ret = video_init();
 	if (ret < 0) {
-		ERROR_LOG("jpeg init failed\n");
+		ERROR_LOG("video_init\n");
 		return -1;
 	}
 	
@@ -221,6 +223,8 @@ int encoder_system_exit(void)
 #ifdef __cplusplus
 }
 #endif
+
+
 
 
 
