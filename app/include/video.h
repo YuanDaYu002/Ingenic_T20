@@ -36,8 +36,8 @@ extern "C"
 #define CROP_EN					1
 #endif
 
-#define SENSOR_WIDTH_SECOND		640	 //视频次分辨率
-#define SENSOR_HEIGHT_SECOND	360
+#define SENSOR_WIDTH_SECOND		640 //480  //640	 //视频次分辨率(不能超过max_width = 800 max_height = 800)
+#define SENSOR_HEIGHT_SECOND	360 //272  //360
 
 #define NR_FRAMES_TO_SAVE		200
 #define STREAM_BUFFER_SIZE		(1 * 1024 * 1024)
@@ -125,5 +125,9 @@ int video_exit(void);
 
 
 #endif
+
+
+
+
 
 

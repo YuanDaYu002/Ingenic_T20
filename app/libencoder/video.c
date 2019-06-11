@@ -12,6 +12,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#include <stdlib.h>
+
 
 #include "imp_common.h"
 #include "imp_encoder.h"
@@ -19,6 +21,9 @@
 
 #include "typeport.h"
 #include "video.h"
+#include "CircularBuffer.h"
+#include "encoder.h"
+
 
 #ifdef __cplusplus
 extern "C"
@@ -30,7 +35,7 @@ extern "C"
 static const int S_RC_METHOD = ENC_RC_MODE_SMART;
 
 /*---#编码通道参数配置------------------------------------------------------------*/
-#if 1
+#if 0
 struct chn_conf chn[FS_CHN_NUM] = {
 	{	CH0_INDEX, 		//main channel
 		CHN0_EN,
@@ -175,6 +180,215 @@ static int save_stream(int fd, IMPEncoderStream *stream)
 	return 0;
 }
 
+/*******************************************************************************
+*@ Description    :判断（原始码流）是否为I帧
+*@ Input          :<stream>编码帧数据指针
+*@ Output         :
+*@ Return         :0:不是I帧；1：是I帧 ; -1:出错
+*@ attention      :
+*******************************************************************************/
+int stream_is_Iframe(IMPEncoderStream *stream)
+{
+	if(NULL == stream)
+		return -1;
+	
+	int i = 0;
+	for (i = 0; i < stream->packCount ; i++) 
+	{
+		if(stream->pack->dataType.h264Type == IMP_H264_NAL_SLICE_IDR||
+		    stream->pack->dataType.h264Type == IMP_H264_NAL_SPS)
+		    return 1;
+	}
+	return 0;
+}
+
+int get_image_size(E_IMAGE_SIZE image_size, int *width, int *height)
+{
+    switch (image_size) {
+    case IMAGE_SIZE_1920x1080:
+        *width = 1920;
+        *height = 1080;
+        break;
+    case IMAGE_SIZE_960x544:
+        *width = 960;
+        *height = 544;
+        break;
+    case IMAGE_SIZE_640x360:
+    	*width = 640;
+    	*height = 360;
+    	break;
+    case IMAGE_SIZE_480x272:
+        *width = 480;
+        *height = 272;
+        break;
+    default:
+        return HLE_RET_ENOTSUPPORTED;
+    }
+
+    return HLE_RET_OK;
+}
+
+/*******************************************************************************
+*@ Description    :获取系统时间详细信息
+*@ Input          :<utc>转换标记，1：转换成世界标准时间；0：转换成本地时间
+*@ Output         :<sys_time>系统时间指针
+					<wday>返回当天是一周中的第几天
+*@ Return         :
+*@ attention      :
+*******************************************************************************/
+int T20_get_time(HLE_SYS_TIME *sys_time, int utc, HLE_U8* wday)
+{
+    time_t time_cur;
+    time(&time_cur);
+    struct tm cur_sys_time;
+    if (utc) {
+        gmtime_r(&time_cur, &cur_sys_time);
+    }
+    else {
+        localtime_r(&time_cur, &cur_sys_time);
+    }
+
+    sys_time->tm_year = cur_sys_time.tm_year + 1900;
+    sys_time->tm_mon = cur_sys_time.tm_mon + 1; /* month */
+    sys_time->tm_mday = cur_sys_time.tm_mday;/* day of the month */
+    sys_time->tm_msec = ((cur_sys_time.tm_hour) * 3600 +
+            (cur_sys_time.tm_min) * 60 + cur_sys_time.tm_sec)*1000;
+    *wday = cur_sys_time.tm_wday;  /* day of the week */
+
+    return HLE_RET_OK;
+}
+
+
+/*******************************************************************************
+*@ Description    :放一帧video码流数据到循环缓存
+*@ Input          :<stream>码流包结构
+					<index>码流编号（0，主码流，1次码流）
+*@ Output         :
+*@ Return         :成功：HLE_RET_OK(0) ； 失败:错误码
+*@ attention      :目前只支持 H.264
+*******************************************************************************/
+static char* TmpStreamBuffer = NULL; //缓存一帧码流数据(考虑到获取的码流帧可能存在多个包)
+static int	 TmpStreamBufferSize = 0;//缓存大小
+static int save_video_stream_to_CirBuffer(IMPEncoderStream *stream,int index)
+{
+	if(NULL == stream)
+		return HLE_RET_EINVAL;
+	
+	E_IMAGE_SIZE resolution;
+	CircularBuffer_t*CircularBuffer = NULL;
+
+	/*---#依据分辨率获取循环缓存池的hander------------------------------------------------------*/
+	if(0 == index) 
+		resolution = IMAGE_SIZE_1920x1080;
+	else if(1 == index) 
+		resolution = IMAGE_SIZE_640x360;
+	else 
+		return HLE_RET_EINVAL;
+		
+	int ret,i, nr_pack = stream->packCount;
+	CircularBuffer = CircularBufferGetHandle(resolution);
+	if(NULL == CircularBuffer)
+		return HLE_RET_ERROR;
+
+	/*---#统计整个码流帧的大小+额外的帧头大小------------------------------------------------------------*/
+	unsigned int frame_size = 0; 
+	for (i = 0; i < nr_pack; i++) 
+	{
+		frame_size += stream->pack[i].length;
+	}
+
+	int head_len = 0;
+	int Iframe_flag = stream_is_Iframe(stream);
+	if(1 == Iframe_flag)
+	{
+		head_len = sizeof(FRAME_HDR) + sizeof(IFRAME_INFO);
+		frame_size += head_len;
+	}
+	else
+	{
+		head_len = sizeof(FRAME_HDR) + sizeof(PFRAME_INFO);
+		frame_size += head_len;
+	}
+	
+	
+	/*---#缓冲空间申请------------------------------------------------------------*/
+	if(TmpStreamBufferSize < frame_size || NULL == TmpStreamBuffer)
+	{
+		if(NULL == TmpStreamBuffer)//初次申请
+		{
+			TmpStreamBuffer = (char*)malloc(frame_size);
+			if(NULL == TmpStreamBuffer)
+			{
+				return HLE_RET_ENORESOURCE;
+			}
+			TmpStreamBufferSize = frame_size;
+		}
+		else //原有空间不够大，需要重新申请
+		{
+			TmpStreamBuffer = (char*)realloc(TmpStreamBuffer,frame_size);
+			if(NULL == TmpStreamBuffer)
+			{
+				return HLE_RET_ENORESOURCE;
+			}
+			TmpStreamBufferSize = frame_size;
+		}
+		
+		memset(TmpStreamBuffer,0,TmpStreamBufferSize);
+
+	}
+
+	/*---#帧头 header 构造+填充------------------------------------------------------------*/
+	int width,height;
+	get_image_size(resolution,&width,&height);
+	FRAME_HDR frame_hdr = {{0x00,0x00,0x01}};
+	if(1 == Iframe_flag)
+	{
+		frame_hdr.type = 0xF8;
+		
+		IFRAME_INFO info = {0};
+		info.enc_std = VENC_STD_H264;
+		info.framerate = VENC_FRAME_RATE_NUM/VENC_FRAME_RATE_DEN;
+		info.pic_width = width;
+		info.pic_height = height;
+		HLE_U8 wday;
+        T20_get_time(&info.rtc_time, 1, &wday);//使用世界标准时间（UTC）
+		info.length = frame_size - head_len; 
+		info.pts_msec = stream->pack->timestamp/1000;
+
+		memcpy(TmpStreamBuffer,&frame_hdr,sizeof(FRAME_HDR));
+		memcpy(TmpStreamBuffer+sizeof(frame_hdr),&info,sizeof(IFRAME_INFO));
+		
+	}
+	else
+	{
+		frame_hdr.type = 0xF9;
+
+		PFRAME_INFO info = {0};
+		info.length = frame_size - head_len;
+		info.pts_msec = stream->pack->timestamp/1000;
+		memcpy(TmpStreamBuffer,&frame_hdr,sizeof(FRAME_HDR));
+		memcpy(TmpStreamBuffer+sizeof(frame_hdr),&info,sizeof(PFRAME_INFO));
+	}
+	
+	/*---#码流数据拷贝------------------------------------------------------------*/
+	int copied_len = 0;
+	for (i = 0; i < nr_pack; i++) 
+	{
+		memcpy(TmpStreamBuffer + head_len + copied_len,(void*)stream->pack[i].virAddr,stream->pack[i].length);
+		copied_len += stream->pack[i].length;
+	}
+	
+	/*---#数据帧整体放入循环缓存池------------------------------------------------------------*/
+	ret = CircularBufferPutOneFrame(CircularBuffer,TmpStreamBuffer,copied_len);
+	if(ret < 0)
+	{
+		ERROR_LOG("CircularBufferPutOneFrame failed!\n");
+		return HLE_RET_ERROR;
+	}
+
+	return HLE_RET_OK;
+	
+}
 
 /*******************************************************************************
 *@ Description    :视频图像编码初始化函数
@@ -378,9 +592,7 @@ void *get_h264_stream_func(void *args)
 {
 	pthread_detach(pthread_self());
 	
-	int i, j, ret;
-	char stream_path[64];
-
+	int i, ret;
 	i = (int ) (*((int*)args));
 
 	video_start(i);//开始视频编码
@@ -388,20 +600,21 @@ void *get_h264_stream_func(void *args)
 	ret = IMP_Encoder_StartRecvPic(i);
 	if (ret < 0) {
 		ERROR_LOG("IMP_Encoder_StartRecvPic(%d) failed\n", i);
-		return ((void *)-1);
+		goto ERR;
 	}
 
-	/*---#DEBUG------------------------------------------------------------*/
-	sprintf(stream_path, "%s/stream-%d.h264",
-			STREAM_FILE_PATH_PREFIX, i);
+#if 0  //DEBUG 直接存储到文件
+	int j = 0;
+	char stream_path[64];
 
-	DEBUG_LOG("Open Stream file %s \n", stream_path);
+	sprintf(stream_path, "%s/stream-%d.h264",STREAM_FILE_PATH_PREFIX, i);
+
 	int stream_fd = open(stream_path, O_RDWR | O_CREAT | O_TRUNC, 0777);
 	if (stream_fd < 0) {
-		ERROR_LOG( "failed: %s\n", strerror(errno));
+		ERROR_LOG( "Open Stream file %s failed: %s\n",stream_path,strerror(errno));
 		return ((void *)-1);
 	}
-	DEBUG_LOG( "OK\n");
+	DEBUG_LOG( "Open Stream file %s OK\n",stream_path);
 
 	for (j = 0; j < NR_FRAMES_TO_SAVE; j++) 
 	{
@@ -433,9 +646,48 @@ void *get_h264_stream_func(void *args)
 
 		IMP_Encoder_ReleaseStream(i, &stream);
 	}
-
 	close(stream_fd);
+	
+#else //直接传给循环缓存池
+	int n = 0;
+	int debug_count = 30; //多少帧打印一次
+	
+	while(1/*继续获取H264编码*/) //后续完善 终止条件
+	{
+		ret = IMP_Encoder_PollingStream(i, 1000);
+		if (ret < 0) 
+		{
+			ERROR_LOG( "Polling stream timeout\n");
+			//IMP_LOG_ERR("video.c", "Polling stream timeout\n");
+			continue;
+		}
+
+		n ++;
+		if(n >= debug_count)
+		{
+			DEBUG_LOG("polling stream[%d] OK!\n",i);
+			n = 0; 
+		}
 		
+		IMPEncoderStream stream;
+		/* Get H264 Stream */
+		ret = IMP_Encoder_GetStream(i, &stream, 1);
+		if (ret < 0) 
+		{
+			ERROR_LOG( "IMP_Encoder_GetStream() failed\n");
+			continue;
+		}
+		
+		save_video_stream_to_CirBuffer(&stream,i);//加锁在循环buffer放入数据的时候有
+
+		IMP_Encoder_ReleaseStream(i, &stream);
+		
+	}
+		
+		
+#endif
+
+ERR:		
 	ret = IMP_Encoder_StopRecvPic(i);
 	if (ret < 0) {
 		ERROR_LOG( "IMP_Encoder_StopRecvPic() failed\n");
@@ -574,7 +826,13 @@ int video_exit(void)
 	}
 
 
-	/* Step.e System exit */
+	/* 释放全局变量*/
+	if(NULL != TmpStreamBuffer)
+	{
+		free(TmpStreamBuffer);
+		TmpStreamBuffer = NULL;
+		TmpStreamBufferSize = 0;
+	}
 
 	return HLE_RET_OK;
 }
@@ -735,6 +993,14 @@ static int jpeg_exit(void)
 #ifdef __cplusplus
 }
 #endif
+
+
+
+
+
+
+
+
 
 
 
