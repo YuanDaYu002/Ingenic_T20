@@ -32,7 +32,7 @@ extern "C"
 
 
 /*---#编码Channel码率控制器模式---------------------------------------------------*/
-static const int S_RC_METHOD = ENC_RC_MODE_SMART;
+static const int S_RC_METHOD = ENC_RC_MODE_CBR;
 
 /*---#编码通道参数配置------------------------------------------------------------*/
 #if 0
@@ -258,7 +258,7 @@ int T20_get_time(HLE_SYS_TIME *sys_time, int utc, HLE_U8* wday)
     return HLE_RET_OK;
 }
 
-
+extern int CircularBufferPrintStatus(CircularBuffer_t *cBuf);
 /*******************************************************************************
 *@ Description    :放一帧video码流数据到循环缓存
 *@ Input          :<stream>码流包结构
@@ -267,8 +267,9 @@ int T20_get_time(HLE_SYS_TIME *sys_time, int utc, HLE_U8* wday)
 *@ Return         :成功：HLE_RET_OK(0) ； 失败:错误码
 *@ attention      :目前只支持 H.264
 *******************************************************************************/
-static char* TmpStreamBuffer = NULL; //缓存一帧码流数据(考虑到获取的码流帧可能存在多个包)
-static int	 TmpStreamBufferSize = 0;//缓存大小
+static char* TmpStreamBuffer[FS_CHN_NUM] = {0}; //临时缓存指针，用于构造整个码流帧。(考虑到获取的码流帧可能存在多个包)
+static int	 TmpStreamBufferSize[FS_CHN_NUM] = {0};//缓存大小
+static int gop[FS_CHN_NUM] = {0}; //DEBUG
 static int save_video_stream_to_CirBuffer(IMPEncoderStream *stream,int index)
 {
 	if(NULL == stream)
@@ -276,6 +277,7 @@ static int save_video_stream_to_CirBuffer(IMPEncoderStream *stream,int index)
 	
 	E_IMAGE_SIZE resolution;
 	CircularBuffer_t*CircularBuffer = NULL;
+
 
 	/*---#依据分辨率获取循环缓存池的hander------------------------------------------------------*/
 	if(0 == index) 
@@ -301,46 +303,53 @@ static int save_video_stream_to_CirBuffer(IMPEncoderStream *stream,int index)
 	int Iframe_flag = stream_is_Iframe(stream);
 	if(1 == Iframe_flag)
 	{
+		DEBUG_LOG("index[%d] received I frame! gop=%d\n",index,gop[index]);
+		gop[index] = 0;
 		head_len = sizeof(FRAME_HDR) + sizeof(IFRAME_INFO);
 		frame_size += head_len;
+		
 	}
 	else
 	{
+		gop[index] ++;
+		//DEBUG_LOG("index[%d] received P frame!\n",index);
 		head_len = sizeof(FRAME_HDR) + sizeof(PFRAME_INFO);
 		frame_size += head_len;
 	}
 	
 	
 	/*---#缓冲空间申请------------------------------------------------------------*/
-	if(TmpStreamBufferSize < frame_size || NULL == TmpStreamBuffer)
+	if(TmpStreamBufferSize[index] < frame_size || NULL == TmpStreamBuffer[index])
 	{
-		if(NULL == TmpStreamBuffer)//初次申请
+		if(NULL == TmpStreamBuffer[index])//初次申请
 		{
-			TmpStreamBuffer = (char*)malloc(frame_size);
-			if(NULL == TmpStreamBuffer)
+			DEBUG_LOG("TmpStreamBuffer[%d] init..... just onece\n",index);
+			TmpStreamBuffer[index] = (char*)malloc(frame_size);
+			if(NULL == TmpStreamBuffer[index])
 			{
 				return HLE_RET_ENORESOURCE;
 			}
-			TmpStreamBufferSize = frame_size;
+			TmpStreamBufferSize[index] = frame_size;
 		}
 		else //原有空间不够大，需要重新申请
 		{
-			TmpStreamBuffer = (char*)realloc(TmpStreamBuffer,frame_size);
-			if(NULL == TmpStreamBuffer)
+			DEBUG_LOG("TmpStreamBuffer[%d] realloc......\n",index);
+			TmpStreamBuffer[index] = (char*)realloc(TmpStreamBuffer[index],frame_size);
+			if(NULL == TmpStreamBuffer[index])
 			{
 				return HLE_RET_ENORESOURCE;
 			}
-			TmpStreamBufferSize = frame_size;
+			TmpStreamBufferSize[index] = frame_size;
 		}
 		
-		memset(TmpStreamBuffer,0,TmpStreamBufferSize);
+		memset(TmpStreamBuffer[index],0,TmpStreamBufferSize[index]);
 
 	}
 
 	/*---#帧头 header 构造+填充------------------------------------------------------------*/
 	int width,height;
 	get_image_size(resolution,&width,&height);
-	FRAME_HDR frame_hdr = {{0x00,0x00,0x01}};
+	FRAME_HDR frame_hdr = {{0x00,0x00,0x01},0x00};
 	if(1 == Iframe_flag)
 	{
 		frame_hdr.type = 0xF8;
@@ -355,8 +364,8 @@ static int save_video_stream_to_CirBuffer(IMPEncoderStream *stream,int index)
 		info.length = frame_size - head_len; 
 		info.pts_msec = stream->pack->timestamp/1000;
 
-		memcpy(TmpStreamBuffer,&frame_hdr,sizeof(FRAME_HDR));
-		memcpy(TmpStreamBuffer+sizeof(frame_hdr),&info,sizeof(IFRAME_INFO));
+		memcpy(TmpStreamBuffer[index],&frame_hdr,sizeof(FRAME_HDR));
+		memcpy(TmpStreamBuffer[index]+sizeof(FRAME_HDR),&info,sizeof(IFRAME_INFO));
 		
 	}
 	else
@@ -366,20 +375,20 @@ static int save_video_stream_to_CirBuffer(IMPEncoderStream *stream,int index)
 		PFRAME_INFO info = {0};
 		info.length = frame_size - head_len;
 		info.pts_msec = stream->pack->timestamp/1000;
-		memcpy(TmpStreamBuffer,&frame_hdr,sizeof(FRAME_HDR));
-		memcpy(TmpStreamBuffer+sizeof(frame_hdr),&info,sizeof(PFRAME_INFO));
+		memcpy(TmpStreamBuffer[index],&frame_hdr,sizeof(FRAME_HDR));
+		memcpy(TmpStreamBuffer[index]+sizeof(FRAME_HDR),&info,sizeof(PFRAME_INFO));
 	}
 	
 	/*---#码流数据拷贝------------------------------------------------------------*/
 	int copied_len = 0;
 	for (i = 0; i < nr_pack; i++) 
 	{
-		memcpy(TmpStreamBuffer + head_len + copied_len,(void*)stream->pack[i].virAddr,stream->pack[i].length);
+		memcpy(TmpStreamBuffer[index] + head_len + copied_len,(void*)stream->pack[i].virAddr,stream->pack[i].length);
 		copied_len += stream->pack[i].length;
 	}
 	
 	/*---#数据帧整体放入循环缓存池------------------------------------------------------------*/
-	ret = CircularBufferPutOneFrame(CircularBuffer,TmpStreamBuffer,copied_len);
+	ret = CircularBufferPutOneFrame(CircularBuffer,TmpStreamBuffer[index],copied_len);
 	if(ret < 0)
 	{
 		ERROR_LOG("CircularBufferPutOneFrame failed!\n");
@@ -446,6 +455,8 @@ int video_init(void)
             rc_attr->outFrmRate.frmRateNum = imp_chn_attr_tmp->outFrmRateNum;
             rc_attr->outFrmRate.frmRateDen = imp_chn_attr_tmp->outFrmRateDen;
             rc_attr->maxGop = 2 * rc_attr->outFrmRate.frmRateNum / rc_attr->outFrmRate.frmRateDen;
+			DEBUG_LOG("rc_attr->maxGop = %d\n",rc_attr->maxGop);
+			
             if (S_RC_METHOD == ENC_RC_MODE_CBR) {
                 rc_attr->attrRcMode.rcMode = ENC_RC_MODE_CBR;
                 rc_attr->attrRcMode.attrH264Cbr.outBitRate = (double)2000.0 * (imp_chn_attr_tmp->picWidth * imp_chn_attr_tmp->picHeight) / (1280 * 720);
@@ -665,7 +676,7 @@ void *get_h264_stream_func(void *args)
 		n ++;
 		if(n >= debug_count)
 		{
-			DEBUG_LOG("polling stream[%d] OK!\n",i);
+			//DEBUG_LOG("polling stream[%d] OK!\n",i);
 			n = 0; 
 		}
 		
@@ -827,12 +838,17 @@ int video_exit(void)
 
 
 	/* 释放全局变量*/
-	if(NULL != TmpStreamBuffer)
+	for(i = 0;i<FS_CHN_NUM;i++)
 	{
-		free(TmpStreamBuffer);
-		TmpStreamBuffer = NULL;
-		TmpStreamBufferSize = 0;
+		if(NULL != TmpStreamBuffer[i])
+		{
+			free(TmpStreamBuffer[i]);
+			TmpStreamBuffer[i] = NULL;
+			TmpStreamBufferSize[i] = 0;
+		}
+			
 	}
+
 
 	return HLE_RET_OK;
 }
@@ -993,6 +1009,19 @@ static int jpeg_exit(void)
 #ifdef __cplusplus
 }
 #endif
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

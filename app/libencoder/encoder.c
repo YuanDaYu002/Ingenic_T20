@@ -51,7 +51,6 @@ int T20_system_init(void)
 	ret = IMP_ISP_AddSensor(&sensor_info);
 	if(ret < 0){
 		ERROR_LOG( "failed to AddSensor\n");
-		//IMP_LOG_ERR("encoder-c", "failed to AddSensor\n");
 		return HLE_RET_ERROR;
 	}
 
@@ -147,22 +146,25 @@ int encoder_system_init(void)
 		ERROR_LOG("T20_system_init\n");
 		return -1;
 	}
-		
+
+
 	ret = video_init();
 	if (ret < 0) {
 		ERROR_LOG("video_init\n");
 		return -1;
 	}
 	
-
+#if 1  //OSD初始化部分
 	ret = osd_init();
 	if (ret < 0) {
 		ERROR_LOG("OSD init failed\n");
 		return -1;
 	}
-
+#endif 
+	
 	for (i = 0; i <  FS_CHN_NUM; i++)
 	{
+		#if 1  //使能OSD初始化的情况
 		/*---#Bind 数据源通道--->OSD叠加--->编码通道------------------------------------------------------------*/
 		ret = IMP_System_Bind(&chn[i].framesource_chn, &chn[i].osdcell);
 		if (ret < 0) {
@@ -175,11 +177,20 @@ int encoder_system_init(void)
 			ERROR_LOG("Bind OSD[%d] and Encoder[%d] failed! \n",i,i);
 			return -1;
 		}
+		#else  //DEBUG
+		ret = IMP_System_Bind(&chn[i].framesource_chn, &chn[i].imp_encoder);
+		if (ret < 0) {
+			ERROR_LOG("Bind Encoder[%d] and framesource[%d] failed! \n",i,i);
+			return -1;
+		}
+		
+		#endif 
+
 	
 
 	}
 
-	
+
 	return 0;
 	
 }
@@ -223,6 +234,11 @@ int encoder_system_exit(void)
 #ifdef __cplusplus
 }
 #endif
+
+
+
+
+
 
 
 

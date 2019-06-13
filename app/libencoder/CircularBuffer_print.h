@@ -10,7 +10,7 @@
 #define _CIRCULAR_BUFFER_PRINT_H
 #include "typeport.h"
 
-//#define CBUF_DEBUG // 打印控制开关
+#define CBUF_DEBUG // 打印控制开关
 #define CBUF_ERROR
 #define CBUF_FATAR
 

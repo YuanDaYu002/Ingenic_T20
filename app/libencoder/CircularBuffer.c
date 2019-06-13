@@ -58,18 +58,24 @@ HLE_S32 CircularBufferRequestUserID(CircularBuffer_t *cBuf)
 		return -1;
 	}
 	int i = 0;
+	
+	pthread_mutex_lock(&cBuf->BufManageMutex);
 	for(i = 0;i<MAX_USER_NUM;i++)
 	{
 		if(0 == cBuf->userArray[i].occupied)//该用户ID可用
 		{
 			cBuf->userArray[i].occupied = 1;
-			/*这里不初始化该 user 的info信息，因为在读数据帧时，
-			读函数会自动处理这种读圈数与写圈数相差很大的情况，
-			此处只返回ID就好*/
+			cBuf->userArray[i].ReadFrmIndex = 0;
+			cBuf->userArray[i].ReadCircleNum = 0;
+			cBuf->userArray[i].diffpos = 0;
+			cBuf->userArray[i].throwframcount = 0;
+			cBuf->userArray[i].needReset = 1;
 			
+			pthread_mutex_unlock(&cBuf->BufManageMutex);
 			return i;
 		}
 	}
+	pthread_mutex_unlock(&cBuf->BufManageMutex);
 
 	CBUF_ERROR_LOG("no free user ID !\n");
 	return -1;
@@ -96,6 +102,7 @@ HLE_S32 CircularBufferFreeUserID(CircularBuffer_t *cBuf,HLE_S32 userid)
 	cBuf->userArray[userid].ReadCircleNum = 0;
 	cBuf->userArray[userid].diffpos = 0;
 	cBuf->userArray[userid].throwframcount = 0;
+	cBuf->userArray[userid].needReset = 0;
 
 	return 0;
 }
@@ -108,7 +115,7 @@ HLE_S32 CircularBufferFreeUserID(CircularBuffer_t *cBuf,HLE_S32 userid)
 *@ Output         :
 *@ Return         :成功:返回0
 					失败：返回-1
-*@ attention      :
+*@ attention      :注意函数内部有加锁操作
 *******************************************************************************/
 HLE_S32 CircularBufferResetUserInfo(CircularBuffer_t *cBuf,HLE_S32 userid)
 { 
@@ -116,10 +123,15 @@ HLE_S32 CircularBufferResetUserInfo(CircularBuffer_t *cBuf,HLE_S32 userid)
 	{ 
 		CBUF_ERROR_LOG("Illegal parameter !\n");
 		return -1; 
-	} 
-	pthread_mutex_lock(&cBuf->BufManageMutex); 
+	}
 
+	CBUF_DEBUG_LOG("CircularBuffer %s ResetUserInfo... !\n",cBuf->resolution);
+		
+	pthread_mutex_lock(&cBuf->BufManageMutex); 
+		
 	HLE_U32 ICurIndex = cBuf->IFrmIndex[cBuf->IFrmIndex_w];//写指针所属I帧的索引值
+	CBUF_DEBUG_LOG("Current user ReadFrmIndex---->frame flag = %#x\n",cBuf->FrmList[ICurIndex].flag);
+	
 	if(ICurIndex <= cBuf->FrmList_w)  //----I------w--------------> w所属的I帧在同一圈
 	{ 	 
 		//跳转到写指针的同一圈
@@ -134,6 +146,9 @@ HLE_S32 CircularBufferResetUserInfo(CircularBuffer_t *cBuf,HLE_S32 userid)
 	cBuf->userArray[userid].occupied = 1;//重置的用户都是已经在使用中的用户，注意别赋值为0 
 	cBuf->userArray[userid].diffpos = 0; 
 	cBuf->userArray[userid].throwframcount = 0; 
+	cBuf->userArray[userid].needReset = 0;
+
+	CBUF_DEBUG_LOG("Current user ReadFrmIndex---->frame flag = %#x\n",cBuf->FrmList[cBuf->userArray[userid].ReadFrmIndex].flag);
 	
 	pthread_mutex_unlock(&cBuf->BufManageMutex);
 
@@ -156,6 +171,7 @@ CircularBuffer_t* CircularBufferCreate(E_IMAGE_SIZE resolution, HLE_U32 audioflg
 {
 
 	HLE_U16 totalFrm = 0;
+	char * str_resolution = NULL;
 	if(audioflg)//有无audio帧的buffer总帧数不一样
 	{
 		totalFrm = MAX_FRM_NUM;
@@ -164,12 +180,14 @@ CircularBuffer_t* CircularBufferCreate(E_IMAGE_SIZE resolution, HLE_U32 audioflg
 	{
 		totalFrm = MAX_V_F_NUM;
 	}
-
+	DEBUG_LOG("totalFrm = %d\n",totalFrm);
+	
 	if(bufsize == 0)//采用默认大小
 	{	  
 		if(IMAGE_SIZE_1920x1080 == resolution)
 		{
 			bufsize = BUFFER_SIZE_1920x1080;
+			str_resolution = "1920*1080";
 		}
 //		else if(IMAGE_SIZE_960x544 == resolution)
 //		{
@@ -178,6 +196,7 @@ CircularBuffer_t* CircularBufferCreate(E_IMAGE_SIZE resolution, HLE_U32 audioflg
 		else if(IMAGE_SIZE_640x360 == resolution)
 		{
 			bufsize = BUFFER_SIZE_640x360;
+			str_resolution = "640*360";
 		}
 //		else if(IMAGE_SIZE_480x272 == resolution)
 //		{
@@ -198,6 +217,7 @@ CircularBuffer_t* CircularBufferCreate(E_IMAGE_SIZE resolution, HLE_U32 audioflg
 	}
 	memset(FrameBufferPool,0,sizeof(CircularBuffer_t) + bufsize);
 
+	FrameBufferPool->resolution = (HLE_S8*)str_resolution;
 	pthread_mutex_init(&FrameBufferPool->BufManageMutex, NULL);
 	int i = 0;
 	for(i=0;i<MAX_USER_NUM;i++)
@@ -208,6 +228,7 @@ CircularBuffer_t* CircularBufferCreate(E_IMAGE_SIZE resolution, HLE_U32 audioflg
 		FrameBufferPool->userArray[i].ReadCircleNum = 0;
 		FrameBufferPool->userArray[i].diffpos = 0;
 		FrameBufferPool->userArray[i].throwframcount = 0;
+		FrameBufferPool->userArray[i].needReset = 0;
 	}
 	FrameBufferPool->bufStart = (HLE_U8*)FrameBufferPool + sizeof(CircularBuffer_t);
 	FrameBufferPool->bufSize = bufsize;
@@ -259,7 +280,6 @@ extern int T20_get_time(HLE_SYS_TIME *sys_time, int utc, HLE_U8* wday);
 				    前三个字节帧头同步码和H.264 NALU分割码相同，均为0x00 0x00 0x01
 				    第四个字节使用了H.264中不会使用到的0xF8-0xFF范围
 *******************************************************************************/
-static HLE_U8		vframe_rate = 15;	//video帧的帧率(默认15)
 HLE_S32 CircularBufferPutOneFrame(CircularBuffer_t * cBuf,void *data,HLE_S32 length)
 {
 	if(NULL == cBuf || NULL == data || length <= 0)
@@ -285,7 +305,7 @@ HLE_S32 CircularBufferPutOneFrame(CircularBuffer_t * cBuf,void *data,HLE_S32 len
 	if(flag == 0xF8)//IDR（I）帧
 	{
 		Iframe_info = (IFRAME_INFO*)((char*)data + sizeof(FRAME_HDR));
-		vframe_rate = Iframe_info->framerate;
+		//vframe_rate = Iframe_info->framerate;
 		PTS = Iframe_info->pts_msec;
 		
 	}
@@ -336,8 +356,9 @@ HLE_S32 CircularBufferPutOneFrame(CircularBuffer_t * cBuf,void *data,HLE_S32 len
 	cBuf->writePos += length;
 
 	/*---#如果是I 帧则还需填充I 帧列表------------------------------------------------------------*/
-	if(flag == 0xF9)
+	if(flag == 0xF8)
 	{
+	#if 0 //IFrmIndex_w后++，存在BUG，当别处在使用 IFrmIndex_w 时，IFrmIndex_w已经++了，这样定位不到I帧
 		cBuf->IFrmIndex[cBuf->IFrmIndex_w] = cBuf->FrmList_w;
 		//cBuf.ICurIndex = cBuf.CurFrmIndex;//当前I帧序列
 		cBuf->IFrmIndex_w ++;
@@ -350,6 +371,21 @@ HLE_S32 CircularBufferPutOneFrame(CircularBuffer_t * cBuf,void *data,HLE_S32 len
 		{
 			cBuf->IFrmIndex_w = 0;
 		}
+	#else  //IFrmIndex_w先++ 再更新索引，保证 IFrmIndex_w 对应的索引就是I帧，这样IFrmIndex是从下标1开始放了
+		cBuf->IFrmIndex_w ++;
+		if(cBuf->totalIFrm < cBuf->IFrmIndex_w)
+		{
+			cBuf->totalIFrm = cBuf->IFrmIndex_w;
+		}
+		
+		if(cBuf->IFrmIndex_w >= MAX_I_F_NUM)
+		{
+			cBuf->IFrmIndex_w = 0;
+		}
+		cBuf->IFrmIndex[cBuf->IFrmIndex_w] = cBuf->FrmList_w;
+		//cBuf.ICurIndex = cBuf.CurFrmIndex;//当前I帧序列
+		
+	#endif
 	}
 
 	/*---#修改帧索引下标------------------------------------------------------------*/
@@ -384,7 +420,9 @@ HLE_S32 CircularBufferPutOneFrame(CircularBuffer_t * cBuf,void *data,HLE_S32 len
 					<length帧数据长度
 *@ Return         :成功：0
 					失败：-1 
-*@ attention      :内部超时时间（1S）
+*@ attention      :1.内部超时时间（1S）
+				    2.新申请的用户第一次读帧时内部会自动进行reset操作，
+						保证第一次读帧时返回的是IDR帧。
 
 读指针的各种情况分析：
 	读指针：r
@@ -434,6 +472,11 @@ HLE_S32 CircularBufferReadOneFrame(int userID,CircularBuffer_t * cBuf, void **da
 	struct timeval tmp_time = {0};
 	gettimeofday(&start_read_time,NULL);
 	memcpy(&tmp_time,&start_read_time,sizeof(start_read_time));
+
+	/*---#检查是否要重置userinfo，保证第一次读帧时跳转到写指针所对应的IDR帧位置-------------------------------*/
+	//CBUF_DEBUG_LOG("cBuf->userArray[userID].needReset = %d\n",cBuf->userArray[userID].needReset);
+	if(cBuf->userArray[userID].needReset)
+		CircularBufferResetUserInfo(cBuf,userID);//注意里边带锁操作
 	
 READ_AGAIN:	//重新读（读指针有重定位，或者异常）
 	gettimeofday(&tmp_time,NULL);
@@ -447,6 +490,7 @@ READ_AGAIN:	//重新读（读指针有重定位，或者异常）
 
 	if(cBuf->userArray[userID].ReadCircleNum > cBuf->circleNum)//circleNum 溢出,或者异常
 	{
+		CBUF_ERROR_LOG("ReadCircleNum > circleNum !\n");
 		cBuf->circleNum = 0;
 		cBuf->userArray[userID].ReadFrmIndex = cBuf->IFrmIndex_w;//跳转需要跳到I帧上，否则会引起视频花屏
 		cBuf->userArray[userID].ReadCircleNum = cBuf->circleNum;
@@ -502,7 +546,7 @@ READ_AGAIN:	//重新读（读指针有重定位，或者异常）
 	{
 		//表示读的太慢,跳转到当前写的位置（保证视频的实时性）
 		#if 1 //DEBUG
-		CBUF_ERROR_LOG("--------err: data recover,ReadFrmIndex = %d,TotalFrm=%d,ReadCircleNum=%d,circlenum=%d\n", 
+		CBUF_ERROR_LOG("err: data recover,ReadFrmIndex = %d,TotalFrm=%d,ReadCircleNum=%d,circlenum=%d\n", 
 			cBuf->userArray[userID].ReadFrmIndex,cBuf->totalFrm,
 			cBuf->userArray[userID].ReadCircleNum,cBuf->circleNum);
 		#endif
@@ -521,7 +565,7 @@ READ_AGAIN:	//重新读（读指针有重定位，或者异常）
 	{
 		//*表示读的太慢,跳转到当前写的位置（因读指针数据已经被覆盖,且需保证视频的实时性）
 		#if 1
-		CBUF_ERROR_LOG("----err: data recover,circlenum:%d, ReadCircleNum:%d\n",
+		CBUF_ERROR_LOG("err: data recover,circlenum:%d, ReadCircleNum:%d\n",
 			cBuf->circleNum, cBuf->userArray[userID].ReadCircleNum);
 		#endif
 		cBuf->userArray[userID].ReadFrmIndex = cBuf->IFrmIndex_w;//跳转需要跳到I帧上，否则会引起视频花屏
@@ -628,6 +672,29 @@ int CircularBufferDestory(void)
 	}
 	return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

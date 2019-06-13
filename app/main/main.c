@@ -75,12 +75,15 @@ int save_h264_file_from_cirbuf(E_IMAGE_SIZE image_size,int time_len,char*file_na
 	memcpy(&current_time,&start_time,sizeof(struct timeval));
 
 	int count_frame_num = 0;
+	char* frame_type = NULL;
+	/*注意采用系统时间去控制录制时长并不很准确,因为循环缓冲buffer
+	在读第一帧时会自动跳转到读指针所对应的IDR帧上，可能多读[0,gop-1]个帧数*/
 	while(current_time.tv_sec - start_time.tv_sec < time_len)
 	{
 		data = NULL;
 		memset(&info,0,sizeof(info));
 		gettimeofday(&current_time,NULL);
-		
+
 		ret = CircularBufferReadOneFrame(userID,handle,&data,&info);
 		if(ret < 0)
 		{
@@ -88,6 +91,15 @@ int save_h264_file_from_cirbuf(E_IMAGE_SIZE image_size,int time_len,char*file_na
 			continue;
 		}
 
+		if(info.flag == 0xF8)
+			frame_type = "I";
+		else if(info.flag == 0xF9)
+			frame_type = "P";
+		else if(info.flag == 0xFA)
+			frame_type = "A";
+		else
+			continue;
+		
 		/*---#-写入到文件-----------------------------------------------------------*/
 		ret = write(fd,data,info.frmLength);
 		if(ret != info.frmLength)
@@ -96,7 +108,8 @@ int save_h264_file_from_cirbuf(E_IMAGE_SIZE image_size,int time_len,char*file_na
 			goto ERR;
 		}
 		count_frame_num++;
-		printf("record frame frome circularbuffer....image_size[%dx%d] count_frame_num = %d\n",width,height,count_frame_num);
+		printf("record frame from circularbuffer...image_size[%dx%d] count_frame_num = %d frame_type = %s\n",
+					width,height,count_frame_num,frame_type);
 			
 	}
 
@@ -124,34 +137,38 @@ int main(int argc,char*argv[])
 	/*---#编码系统初始化----------------------------------------------------------*/
 	ret = encoder_system_init();
 	if(ret < 0) return -1;
-	
+
 	/*---#创建OSD实时更新线程-----------------------------------------------------*/
-#if 1
+
 	ret = timestamp_update_task();
 	if(ret < 0) goto ERR;
-#endif 
+
 	/*---#创建h264实时编码帧获取线程----------------------------------------------*/
+
 	ret = video_get_h264_stream_task();
 	if(ret < 0) goto ERR;
-	
+
 	/*---#获取抓拍图像------------------------------------------------------------*/
-#if 1
+
 	sleep(2); //开机后不要太快抓拍，图像还没稳定下来，可能抓到黑屏
+	#if 0
 	ret = jpeg_get_one_snap(0);
 	if(ret < 0) goto ERR;
 	
 	ret = jpeg_get_one_snap(1);
 	if(ret < 0) goto ERR;
-#endif
+	#endif
 
 	//DEBUG
-	save_h264_file_from_cirbuf(IMAGE_SIZE_1920x1080,15,"/tmp/cirbuffer_chn_0.h264");
-	//save_h264_file_from_cirbuf(IMAGE_SIZE_640x360,10,"/tmp/cirbuffer_chn_1.h264");	
+	save_h264_file_from_cirbuf(IMAGE_SIZE_640x360,8,"/tmp/cirbuffer_chn_1.h264");	
+	save_h264_file_from_cirbuf(IMAGE_SIZE_1920x1080,8,"/tmp/cirbuffer_chn_0.h264");
 	
+		
 	int i= 30;//延迟多少秒自动退出（DEBUG）
 	while(1)
 	{
 		sleep(2);
+		printf("...\n");
 		i--;
 	}
 		
@@ -162,6 +179,20 @@ ERR:
 	
 	return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

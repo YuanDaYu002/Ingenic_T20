@@ -45,6 +45,7 @@ typedef struct _UserInfo_t
 	HLE_U32			ReadCircleNum;			/*此用户对帧缓冲池的访问圈数，初始时等于帧缓冲池中的circlenum*/
 	HLE_U32			diffpos;				/*读指针和写指针位置差值，单位为帧*/
 	HLE_U32 		throwframcount;			/*从开始计数丢帧的个数*/
+	HLE_U32			needReset;				/*读信息需要重置（申请用户ID后，首次读时数据时需要将读信息重置到离写指针所对应的IDR帧位置）*/
 }UserInfo_t;
 
 
@@ -63,6 +64,7 @@ typedef struct  _FrameInfo_t
 /*循环缓冲区管理结构*/
 typedef struct _CircularBuffer_t 
 {
+	HLE_S8			*resolution;			/*当前循环buf所对应的视频分辨率(字符串格式：1920*1080 )*/
 	pthread_mutex_t BufManageMutex;			/*读写锁*/
 	UserInfo_t		userArray[MAX_USER_NUM];/*用户信息描述数组*/
 	HLE_U8			*bufStart;				/*媒体数据buf 起始地址*/
@@ -177,6 +179,8 @@ int CircularBufferDestory(void);
 
 
 #endif
+
+
 
 
 
