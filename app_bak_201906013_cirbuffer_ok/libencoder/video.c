@@ -614,6 +614,52 @@ void *get_h264_stream_func(void *args)
 		goto ERR;
 	}
 
+#if 0  //DEBUG 直接存储到文件
+	int j = 0;
+	char stream_path[64];
+
+	sprintf(stream_path, "%s/stream-%d.h264",STREAM_FILE_PATH_PREFIX, i);
+
+	int stream_fd = open(stream_path, O_RDWR | O_CREAT | O_TRUNC, 0777);
+	if (stream_fd < 0) {
+		ERROR_LOG( "Open Stream file %s failed: %s\n",stream_path,strerror(errno));
+		return ((void *)-1);
+	}
+	DEBUG_LOG( "Open Stream file %s OK\n",stream_path);
+
+	for (j = 0; j < NR_FRAMES_TO_SAVE; j++) 
+	{
+		ret = IMP_Encoder_PollingStream(i, 1000);
+		if (ret < 0) 
+		{
+			ERROR_LOG( "Polling stream timeout\n");
+			//IMP_LOG_ERR("video.c", "Polling stream timeout\n");
+			continue;
+		}
+		DEBUG_LOG("polling stream OK!\n");
+		
+		IMPEncoderStream stream;
+		/* Get H264 Stream */
+		ret = IMP_Encoder_GetStream(i, &stream, 1);
+		if (ret < 0) 
+		{
+			ERROR_LOG( "IMP_Encoder_GetStream() failed\n");
+			return ((void *)-1);
+		}
+		//DEBUG_LOG( "i=%d, stream.packCount=%d, stream.h264RefType=%d\n", i, stream.packCount, stream.h264RefType);
+
+		ret = save_stream(stream_fd, &stream);
+		if (ret < 0) 
+		{
+			close(stream_fd);
+			return ((void *)ret);
+		}
+
+		IMP_Encoder_ReleaseStream(i, &stream);
+	}
+	close(stream_fd);
+	
+#else //直接传给循环缓存池
 	int n = 0;
 	int debug_count = 30; //多少帧打印一次
 	
@@ -648,6 +694,9 @@ void *get_h264_stream_func(void *args)
 		IMP_Encoder_ReleaseStream(i, &stream);
 		
 	}
+		
+		
+#endif
 
 ERR:		
 	ret = IMP_Encoder_StopRecvPic(i);
@@ -960,7 +1009,6 @@ static int jpeg_exit(void)
 #ifdef __cplusplus
 }
 #endif
-
 
 
 

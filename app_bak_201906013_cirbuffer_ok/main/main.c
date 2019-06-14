@@ -29,7 +29,7 @@ extern int get_image_size(E_IMAGE_SIZE image_size, int *width, int *height);
 					<time_len> 要录制时长
 					<file_name> 保存文件的文件名(带绝对路径)
 *@ Output         :
-*@ Return         :成功：HLE_RET_OK ；失败 ： 错误码
+*@ Return         :
 *@ attention      :
 *******************************************************************************/
 int save_h264_file_from_cirbuf(E_IMAGE_SIZE image_size,int time_len,char*file_name)
@@ -138,37 +138,40 @@ int main(int argc,char*argv[])
 	ret = encoder_system_init();
 	if(ret < 0) return -1;
 
-	/*---#启动编码业务------------------------------------------------------------*/
-	ret= encoder_system_start();
+	/*---#创建OSD实时更新线程-----------------------------------------------------*/
+
+	ret = timestamp_update_task();
 	if(ret < 0) goto ERR;
 
-	
-	/*---#获取抓拍图像，保存到文件------------------------------------------------*/
+	/*---#创建h264实时编码帧获取线程----------------------------------------------*/
+
+	ret = video_get_h264_stream_task();
+	if(ret < 0) goto ERR;
+
+	/*---#获取抓拍图像------------------------------------------------------------*/
+
 	sleep(2); //开机后不要太快抓拍，图像还没稳定下来，可能抓到黑屏
+	#if 0
 	ret = jpeg_get_one_snap(0);
 	if(ret < 0) goto ERR;
 	
 	ret = jpeg_get_one_snap(1);
 	if(ret < 0) goto ERR;
-	
-	/*---#从循环缓存池获取编码帧，直接保存到文件-----------------------------------*/
-	#if 0
-	ret = save_h264_file_from_cirbuf(IMAGE_SIZE_640x360,8,"/tmp/cirbuffer_chn_1.h264");	
-	if(ret < 0) goto ERR;
-	
-	ret = save_h264_file_from_cirbuf(IMAGE_SIZE_1920x1080,8,"/tmp/cirbuffer_chn_0.h264");
-	if(ret < 0) goto ERR;
 	#endif
+
+	//DEBUG
+	save_h264_file_from_cirbuf(IMAGE_SIZE_640x360,8,"/tmp/cirbuffer_chn_1.h264");	
+	save_h264_file_from_cirbuf(IMAGE_SIZE_1920x1080,8,"/tmp/cirbuffer_chn_0.h264");
+	
 		
-	int i= 10;//延迟多少秒自动退出（DEBUG）
+	int i= 30;//延迟多少秒自动退出（DEBUG）
 	while(1)
 	{
-		sleep(1);
+		sleep(2);
 		printf("...\n");
 		i--;
 	}
-
-
+		
 
 ERR:
 	encoder_system_exit();
@@ -176,20 +179,6 @@ ERR:
 	
 	return 0;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
