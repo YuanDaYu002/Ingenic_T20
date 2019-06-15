@@ -153,10 +153,10 @@ typedef struct
 
 typedef struct
 {
-    HLE_U8 enc_type; //音频编码类型，具体见E_AENC_STANDARD
-    HLE_U8 sample_rate; //采样频率，具体见E_AUDIO_SAMPLE_RATE
-    HLE_U8 bit_width; //采样位宽，具体见E_AUDIO_BIT_WIDTH
-    HLE_U8 sound_mode; //单声道还是立体声，具体见E_AUDIO_SOUND_MODE
+    HLE_U8 enc_type; //音频编码类型，具体见 E_AENC_STANDARD
+    HLE_U8 sample_rate; //采样频率，具体见 E_AUDIO_SAMPLE_RATE
+    HLE_U8 bit_width; //采样位宽，具体见 E_AUDIO_BIT_WIDTH
+    HLE_U8 sound_mode; //单声道还是立体声，具体见 E_AUDIO_SOUND_MODE
     HLE_U32 length;
     HLE_U64 pts_msec;
 } AFRAME_INFO;
@@ -233,6 +233,7 @@ int encoder_system_exit(void);
 #endif	 
 	 
 #endif
+
 
 
 

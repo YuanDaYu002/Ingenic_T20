@@ -304,7 +304,7 @@ static int save_video_stream_to_CirBuffer(IMPEncoderStream *stream,int index)
 	if(1 == Iframe_flag)
 	{
 		DEBUG_LOG("index[%d] received I frame! gop=%d\n",index,gop[index]);
-		gop[index] = 0;
+		gop[index] = 1;
 		head_len = sizeof(FRAME_HDR) + sizeof(IFRAME_INFO);
 		frame_size += head_len;
 		
@@ -797,6 +797,7 @@ int video_exit(void)
 			TmpStreamBuffer[i] = NULL;
 			TmpStreamBufferSize[i] = 0;
 		}
+		gop[i] = 0;
 			
 	}
 
@@ -960,6 +961,8 @@ static int jpeg_exit(void)
 #ifdef __cplusplus
 }
 #endif
+
+
 
 
 

@@ -14,9 +14,15 @@ extern "C"
 {
 #endif
 
-#define AUDIO_DEVICE_ID 	1		//音频设备号(ID)
-#define AI_CHANNEL_ID 		0		//音频输入通道号(ID)
-	 
+
+#define AI_DEVICE_ID 	1		//AI(MIC)设备号(ID)
+#define AO_DEVICE_ID	0		//AO(speaker)设备号(ID)
+
+#define AI_CHANNEL_ID 	0		//音频输入通道号(ID)
+#define AO_CHANNEL_ID 	0		//音频输出通道号(ID)
+
+
+
 /*******************************************************************************
 *@ Description    :音频初始化函数
 *@ Input          :
@@ -35,6 +41,15 @@ int audio_init(void);
 *******************************************************************************/
 int audio_get_PCM_stream_task(void);
 
+/*******************************************************************************
+*@ Description    :发送PCM音频数据到AO
+*@ Input          :<buf>数据指针
+					<size>数据大小
+*@ Output         :
+*@ Return         :成功：HLE_RET_OK ；失败 ： 错误码
+*@ attention      :
+*******************************************************************************/
+int audio_send_PCM_stream_to_speacker(void *buf,int size);
 
 /*******************************************************************************
 *@ Description    :退出音频编码
@@ -53,6 +68,8 @@ int audio_exit(void);
 #endif	 
 	 
 #endif
+
+
 
 
 
