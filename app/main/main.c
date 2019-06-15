@@ -151,8 +151,8 @@ int main(int argc,char*argv[])
 	ret = jpeg_get_one_snap(1);
 	if(ret < 0) goto ERR;
 	
-	/*---#从循环缓存池获取编码帧，直接保存到文件-----------------------------------*/
-	#if 0
+	/*---#从循环缓存池获取编码帧(H264 + AAC/PCM)，直接保存到文件-----------------------------------*/
+	#if 1
 	ret = save_h264_file_from_cirbuf(IMAGE_SIZE_640x360,8,"/tmp/cirbuffer_chn_1.h264");	
 	if(ret < 0) goto ERR;
 	
@@ -176,6 +176,8 @@ ERR:
 	
 	return 0;
 }
+
+
 
 
 

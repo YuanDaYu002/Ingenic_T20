@@ -95,7 +95,7 @@ int video_init(void);
 *@ Return         :成功：HLE_RET_OK(0) ; 失败：HLE_RET_ERROR(-1)
 *@ attention      :
 *******************************************************************************/
-int video_get_h264_stream_task(void);
+int video_get_h264_frame_task(void);
 
 /*******************************************************************************
 *@ Description    :抓拍一帧jpeg图像
@@ -125,6 +125,7 @@ int video_exit(void);
 
 
 #endif
+
 
 
 

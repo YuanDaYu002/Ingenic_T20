@@ -45,7 +45,8 @@ typedef enum
 {
     AENC_STD_G711A,
     AENC_STD_ADPCM,
-    //AENC_STD_MP3,
+    AENC_STD_MP3,
+    AENC_STD_AAC,
 
     AENC_STD_NR,
 } E_AENC_STANDARD;
@@ -233,6 +234,7 @@ int encoder_system_exit(void);
 #endif	 
 	 
 #endif
+
 
 
 

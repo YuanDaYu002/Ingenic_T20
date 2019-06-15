@@ -6,10 +6,6 @@
 * @brief:  编码相关函数
 * @attention:
 ***************************************************************************/
-#ifdef __cplusplus
-extern "C"
-{
-#endif
 
 #include <string.h>
 
@@ -213,13 +209,20 @@ int encoder_system_start(void)
 {
 	int ret;
 	/*---#创建audio编码接收线程---------------------------------------------------*/
-	ret = audio_get_PCM_stream_task();
+	ret = audio_get_PCM_frame_task();
 	if(ret < 0) 
 	{
-		ERROR_LOG("create audio_get_PCM_stream_task failed !\n");
+		ERROR_LOG("create audio_get_PCM_frame_task failed !\n");
 		return HLE_RET_ERROR;
 	}
-		
+
+	ret = AENC_G711_get_frame_task();
+	if(ret < 0) 
+	{
+		ERROR_LOG("create AENC_G711_get_frame_task failed !\n");
+		return HLE_RET_ERROR;
+	}
+	
 	/*---#创建OSD实时更新线程-----------------------------------------------------*/
 	ret = timestamp_update_task();
 	if(ret < 0) 
@@ -229,10 +232,10 @@ int encoder_system_start(void)
 	}
 
 	/*---#创建h264实时编码帧获取线程----------------------------------------------*/
-	ret = video_get_h264_stream_task();
+	ret = video_get_h264_frame_task();
 	if(ret < 0) 
 	{
-		ERROR_LOG("create video_get_h264_stream_task failed !\n");
+		ERROR_LOG("create video_get_h264_frame_task failed !\n");
 		return HLE_RET_ERROR;
 	}
 
@@ -288,9 +291,7 @@ int encoder_system_exit(void)
 	
 }
 
-#ifdef __cplusplus
-}
-#endif
+
 
 
 

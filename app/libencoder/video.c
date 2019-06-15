@@ -25,12 +25,6 @@
 #include "encoder.h"
 
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
-
 /*---#编码Channel码率控制器模式---------------------------------------------------*/
 static const int S_RC_METHOD = ENC_RC_MODE_CBR;
 
@@ -158,8 +152,11 @@ struct chn_conf chn[FS_CHN_NUM] = {
 };
 #endif
 
-
+static int jpeg_init(void);
 static int jpeg_exit(void);
+extern int CircularBufferPrintStatus(CircularBuffer_t *cBuf);
+
+
 
 	
 static int save_stream(int fd, IMPEncoderStream *stream)
@@ -236,7 +233,7 @@ int get_image_size(E_IMAGE_SIZE image_size, int *width, int *height)
 *@ Return         :
 *@ attention      :
 *******************************************************************************/
-int T20_get_time(HLE_SYS_TIME *sys_time, int utc, HLE_U8* wday)
+int sys_get_time(HLE_SYS_TIME *sys_time, int utc, HLE_U8* wday)
 {
     time_t time_cur;
     time(&time_cur);
@@ -258,7 +255,6 @@ int T20_get_time(HLE_SYS_TIME *sys_time, int utc, HLE_U8* wday)
     return HLE_RET_OK;
 }
 
-extern int CircularBufferPrintStatus(CircularBuffer_t *cBuf);
 /*******************************************************************************
 *@ Description    :放一帧video码流数据到循环缓存
 *@ Input          :<stream>码流包结构
@@ -270,7 +266,7 @@ extern int CircularBufferPrintStatus(CircularBuffer_t *cBuf);
 static char* TmpStreamBuffer[FS_CHN_NUM] = {0}; //临时缓存指针，用于构造整个码流帧。(考虑到获取的码流帧可能存在多个包)
 static int	 TmpStreamBufferSize[FS_CHN_NUM] = {0};//缓存大小
 static int gop[FS_CHN_NUM] = {0}; //DEBUG
-static int save_video_stream_to_CirBuffer(IMPEncoderStream *stream,int index)
+static int video_send_Vframe_to_CirBuf(IMPEncoderStream *stream,int index)
 {
 	if(NULL == stream)
 		return HLE_RET_EINVAL;
@@ -360,7 +356,7 @@ static int save_video_stream_to_CirBuffer(IMPEncoderStream *stream,int index)
 		info.pic_width = width;
 		info.pic_height = height;
 		HLE_U8 wday;
-        T20_get_time(&info.rtc_time, 1, &wday);//使用世界标准时间（UTC）
+        sys_get_time(&info.rtc_time, 1, &wday);//使用世界标准时间（UTC）
 		info.length = frame_size - head_len; 
 		info.pts_msec = stream->pack->timestamp/1000;
 
@@ -406,7 +402,6 @@ static int save_video_stream_to_CirBuffer(IMPEncoderStream *stream,int index)
 *@ Return         :成功：HLE_RET_OK(0) ; 失败：HLE_RET_ERROR(-1)
 *@ attention      :
 *******************************************************************************/
-int jpeg_init(void);
 int video_init(void)
 {
 	int i, ret;
@@ -599,7 +594,7 @@ int video_start(int i)
 *@ attention      :
 *******************************************************************************/
 int video_stop(int i);
-void *get_h264_stream_func(void *args)
+void *video_get_h264_frame_func(void *args)
 {
 	pthread_detach(pthread_self());
 	
@@ -643,7 +638,7 @@ void *get_h264_stream_func(void *args)
 			continue;
 		}
 		
-		save_video_stream_to_CirBuffer(&stream,i);//加锁在循环buffer放入数据的时候有
+		video_send_Vframe_to_CirBuf(&stream,i);//加锁在循环buffer放入数据的时候有
 
 		IMP_Encoder_ReleaseStream(i, &stream);
 		
@@ -670,7 +665,7 @@ ERR:
 *@ Return         :成功：HLE_RET_OK(0) ; 失败：HLE_RET_ERROR(-1)
 *@ attention      :
 *******************************************************************************/
-int video_get_h264_stream_task(void)
+int video_get_h264_frame_task(void)
 {
 	unsigned int i;
 	int ret;
@@ -678,7 +673,7 @@ int video_get_h264_stream_task(void)
 
 	for (i = 0; i < FS_CHN_NUM; i++) {
 		if (chn[i].enable) {
-			ret = pthread_create(&tid[i], NULL, get_h264_stream_func, &chn[i].index);
+			ret = pthread_create(&tid[i], NULL, video_get_h264_frame_func, &chn[i].index);
 			if (ret < 0) {
 				ERROR_LOG( "Create Chn%d get_h264_stream_func \n",chn[i].index);
 			}
@@ -817,7 +812,7 @@ int video_exit(void)
 *@ attention      :A.一路Group同时支持一路H264和一路JPEG抓拍
 				   B.jpeg通道的通道号其实是2/3，不能与视频编码通道0/1产生冲突
 *******************************************************************************/
-int jpeg_init(void)
+static int jpeg_init(void)
 {
 	int i, ret;
 	IMPEncoderAttr *enc_attr;
@@ -957,10 +952,6 @@ static int jpeg_exit(void)
 
 
 
-
-#ifdef __cplusplus
-}
-#endif
 
 
 

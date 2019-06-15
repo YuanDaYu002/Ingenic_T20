@@ -261,7 +261,7 @@ void CircularBufferFree(CircularBuffer_t *cBuf)
 }
 
 
-extern int T20_get_time(HLE_SYS_TIME *sys_time, int utc, HLE_U8* wday);
+extern int sys_get_time(HLE_SYS_TIME *sys_time, int utc, HLE_U8* wday);
 
 /*******************************************************************************
 *@ Description    :存放一帧video/audio帧到缓存
@@ -344,7 +344,7 @@ HLE_S32 CircularBufferPutOneFrame(CircularBuffer_t * cBuf,void *data,HLE_S32 len
 	/*---#填写一帧索引信息------------------------------------------------------------*/
 	HLE_SYS_TIME sys_time;
 	HLE_U8 wday;
-	T20_get_time(&sys_time, 1, &wday);
+	sys_get_time(&sys_time, 1, &wday);
 	cBuf->FrmList[cBuf->FrmList_w].frmStartPos = cBuf->writePos;
 	cBuf->FrmList[cBuf->FrmList_w].frmLength = length;
 	cBuf->FrmList[cBuf->FrmList_w].PTS = PTS;
@@ -672,6 +672,7 @@ int CircularBufferDestory(void)
 	}
 	return 0;
 }
+
 
 
 

@@ -17,8 +17,18 @@
 #include "CircularBuffer.h"
 #include "typeport.h"
 
-int audio_send_frame_to_cirbuf(IMPAudioFrame *buf);
+int audio_send_PCM_stream_to_speacker(void *buf,int size);
+int audio_send_Aframe_to_cirbuf(void *buf,E_AENC_STANDARD enc_type);
+static int AENC_G711_init(void);
+static int AENC_G711_send_one_frame(void * buf_pcm,int len);
+static int AENC_G711_exit(void);
 
+
+
+/**********************************************************************************
+* 								AI/AO 部分代码  
+***********************************************************************************/
+#define AI_AO_PORTION
 
 /*******************************************************************************
 *@ Description    :音频输入音量设置
@@ -27,7 +37,7 @@ int audio_send_frame_to_cirbuf(IMPAudioFrame *buf);
 *@ Return         :成功：HLE_RET_OK ；失败 ： 错误码
 *@ attention      :
 *******************************************************************************/
-int set_AI_volume(int chnVol)
+int audio_set_AI_volume(int chnVol)
 {
 	int ret;	
 	/* Step 5: Set audio channel volume. */
@@ -54,7 +64,7 @@ int set_AI_volume(int chnVol)
 *@ Return         :成功：HLE_RET_OK ；失败 ： 错误码
 *@ attention      :
 *******************************************************************************/
-int set_AI_Gain(int aigain)
+int audio_set_AI_Gain(int aigain)
 {
 	int ret;
 	//音频输入增益设置
@@ -81,7 +91,7 @@ int set_AI_Gain(int aigain)
 *@ Return         :成功：HLE_RET_OK ；失败 ： 错误码
 *@ attention      :
 *******************************************************************************/
-int set_AO_volume(int chnVol)
+int audio_set_AO_volume(int chnVol)
 {
 	int ret;
 	/* Step 4: Set audio channel volume. */
@@ -108,7 +118,7 @@ int set_AO_volume(int chnVol)
 *@ Return         :成功：HLE_RET_OK ；失败 ： 错误码
 *@ attention      :
 *******************************************************************************/
-int set_AO_Gain(int aogain)
+int audio_set_AO_Gain(int aogain)
 {
 	int ret;
 	ret = IMP_AO_SetGain(AO_DEVICE_ID, AO_CHANNEL_ID, aogain);
@@ -202,8 +212,8 @@ int audio_in_init(void)
 	}
 	
 	/*---#音频音量设置------------------------------------------------------------*/
-	set_AI_volume(60);
-	set_AI_Gain(15);
+	audio_set_AI_volume(60);
+	audio_set_AI_Gain(15);
 
 	/*---#回音消除------------------------------------------------------------*/
 	/* 回音消除的参数文件位于/etc/webrtc_profile.ini 配置文件中.*/
@@ -309,8 +319,8 @@ int audio_out_init(void)
 		return HLE_RET_ERROR;
 	}
 
-	set_AO_volume(80);
-	set_AO_Gain(18);	
+	audio_set_AO_volume(80);
+	audio_set_AO_Gain(18);	
 
 	return HLE_RET_OK;
 
@@ -358,22 +368,23 @@ int audio_out_exit(void)
 *@ Return         :
 *@ attention      :
 *******************************************************************************/
-#define DEBUG_WRITE_TO_FILE 0	  //DEBUG
-#define IMP_AUDIO_RECORD_NUM 200  //DEBUG
-void* audio_get_PCM_stream_func(void*args)
+#define DEBUG_WRITE_PCM_TO_FILE 	0	  //DEBUG
+#define RECORD_PCM_FRAME_NUM 		200   //DEBUG
+void* audio_get_PCM_frame_func(void*args)
 {
 	pthread_detach(pthread_self());
 
 	int ret;
 	IMPAudioFrame frm;
-#if DEBUG_WRITE_TO_FILE
+
+	#if DEBUG_WRITE_PCM_TO_FILE
 	int record_num = 0;
 	FILE *record_file = fopen("/tmp/audio_pcm.pcm", "wb");
 	if(record_file == HLE_RET_ERROR) {
 		ERROR_LOG("fopen /tmp/audio_pcm.pcm failed\n");
 		return HLE_RET_ERROR;
 	}
-#endif
+	#endif
 
 	while(1 /*以后要用条件进行控制*/)
 	{
@@ -392,14 +403,16 @@ void* audio_get_PCM_stream_func(void*args)
 			continue;
 		}
 		
-#if DEBUG_WRITE_TO_FILE	//debug /* Step 7: Save the recording data to a file. */
-		fwrite(frm.virAddr, 1, frm.len, record_file);
-#else	//直接放入循环缓存buffer
-		audio_send_frame_to_cirbuf(&frm);
-#endif
-
+		#if DEBUG_WRITE_PCM_TO_FILE	//debug /* Step 7: Save the recording data to a file. */
+			fwrite(frm.virAddr, 1, frm.len, record_file);
+		#else	//直接放入循环缓存buffer
+			//audio_send_Aframe_to_cirbuf(&frm,AENC_STD_ADPCM); //注意 PCM/AAC/g711 只能放入一种格式的帧到循环buffer
+		#endif
 	
-		//AI to  AO MIC数据输出到喇叭
+		//输送到AENC编码
+		AENC_G711_send_one_frame(frm.virAddr,frm.len);
+	
+		//AI to AO ， MIC数据输出到喇叭
 		audio_send_PCM_stream_to_speacker(frm.virAddr,frm.len);
 
 		
@@ -410,39 +423,40 @@ void* audio_get_PCM_stream_func(void*args)
 			goto ERR;
 		}
 
-#if DEBUG_WRITE_TO_FILE
-		if(++record_num >= IMP_AUDIO_RECORD_NUM)
+		#if DEBUG_WRITE_PCM_TO_FILE
+		if(++record_num >= RECORD_PCM_FRAME_NUM)
 		{
 			ERROR_LOG("********************Audio  PCM record success*************************!\n");
 			break;
 		}
-#endif
+		#endif
 			
 	
 		
 	}
 		
 ERR:
-#if DEBUG_WRITE_TO_FILE
+	#if DEBUG_WRITE_PCM_TO_FILE
 	fclose(record_file);
-#endif
+	#endif
+
 	pthread_exit(0) ;
 
 }
 
 /*******************************************************************************
-*@ Description    :创建获取音频码流的线程
+*@ Description    :创建“获取PCM编码帧”线程
 *@ Input          :
 *@ Output         :
 *@ Return         :成功：HLE_RET_OK ；失败 ： 错误码
 *@ attention      :
 *******************************************************************************/
-int audio_get_PCM_stream_task(void)
+int audio_get_PCM_frame_task(void)
 {
 	pthread_t tid;
-	int ret = pthread_create(&tid, NULL, audio_get_PCM_stream_func, NULL);
+	int ret = pthread_create(&tid, NULL, audio_get_PCM_frame_func, NULL);
 	if (ret < 0) {
-		ERROR_LOG( "Create audio_get_PCM_stream_func fsiled!\n");
+		ERROR_LOG( "Create audio_get_PCM_frame_func fsiled!\n");
 		return HLE_RET_ERROR;
 	}
 			
@@ -488,17 +502,18 @@ int audio_send_PCM_stream_to_speacker(void *buf,int size)
 
 
 /*******************************************************************************
-*@ Description    :发送音频数据(PCM/AAC)帧到循环缓冲区
+*@ Description    :发送音频数据(PCM/AAC/g711)帧到循环缓冲区
 *@ Input          :<buf>数据指针
 					<size>数据大小
 *@ Output         :
 *@ Return         :成功：HLE_RET_OK ；失败 ： 错误码
-*@ attention      :
+*@ attention      :注意 PCM/AAC/g711 只能接受一种类型的编码帧，不要将不同类型的
+					编码同时放入到循环缓存中去
 *******************************************************************************/
 static CircularBuffer_t *cirbuf_handle[FS_CHN_NUM] = {0}; 
 static char* tmp_Aframe_buf = NULL;		//用于构造一帧完整的数据帧
 static int  tmp_Aframe_buf_size = 0;
-int audio_send_frame_to_cirbuf(IMPAudioFrame *buf)
+int audio_send_Aframe_to_cirbuf(void *buf,E_AENC_STANDARD enc_type)
 {
 	if(NULL == buf)
 	{
@@ -508,17 +523,44 @@ int audio_send_frame_to_cirbuf(IMPAudioFrame *buf)
 
 	
 	/*---#构造帧数据头------------------------------------------------------------*/
+	char* real_data = NULL;		//帧真实数据
+	int real_len = 0;			//帧真实数据长度
 	FRAME_HDR head = {{0x00,0x00,0x01},0xFA};
 	AFRAME_INFO info = {0};
-	info.enc_type = AENC_STD_ADPCM;
+	info.enc_type = enc_type;
 	info.sample_rate = AUDIO_SR_16000;
 	info.bit_width = AUDIO_BW_16;
 	info.sound_mode = AUDIO_SM_MONO;
-	info.length = buf->len;
-	info.pts_msec = buf->timeStamp; //注意是否要除以1000，SDK没有说明时间戳的单位
+	if(enc_type == AENC_STD_ADPCM)
+	{
+		IMPAudioFrame * PCM_frame = (IMPAudioFrame *)buf;
+		info.length = PCM_frame->len;
+		info.pts_msec = (HLE_U64)(PCM_frame->timeStamp/1000); //注意是否要除以1000，SDK没有说明时间戳的单位
+		real_data = (char*)PCM_frame->virAddr;
+		real_len = PCM_frame->len;
+	}
+	else if(enc_type == AENC_STD_G711A)
+	{
+		IMPAudioStream *G711A_frame = (IMPAudioStream*)buf;
+		info.length = G711A_frame->len;
+		info.pts_msec = (HLE_U64)(G711A_frame->timeStamp/1000); //注意是否要除以1000，SDK没有说明时间戳的单位
+		real_data = (char*)G711A_frame->stream;
+		real_len = G711A_frame->len;
+	}
+	else if(enc_type == AENC_STD_AAC)
+	{
+		ERROR_LOG("not support AAC typpe !\n");
+		return HLE_RET_EINVAL;
+	}
+	else
+	{
+		ERROR_LOG("not support AENC typpe !\n");
+		return HLE_RET_EINVAL;
+	}
+	
 
 	/*---#缓冲空间申请（用于构造一帧完整的数据）-----------------------------------*/
-	int frame_size = sizeof(FRAME_HDR) + sizeof(AFRAME_INFO) + buf->len;
+	int frame_size = sizeof(FRAME_HDR) + sizeof(AFRAME_INFO) + real_len;
 	if(tmp_Aframe_buf_size < frame_size || NULL == tmp_Aframe_buf)
 	{
 		if(NULL == tmp_Aframe_buf)//初次申请
@@ -550,7 +592,7 @@ int audio_send_frame_to_cirbuf(IMPAudioFrame *buf)
 	/*---#拷贝数据------------------------------------------------------------*/
 	memcpy(tmp_Aframe_buf,&head,sizeof(FRAME_HDR));
 	memcpy(tmp_Aframe_buf+sizeof(FRAME_HDR),&info,sizeof(AFRAME_INFO));
-	memcpy(tmp_Aframe_buf+sizeof(FRAME_HDR)+sizeof(AFRAME_INFO),buf->virAddr,buf->len);
+	memcpy(tmp_Aframe_buf+sizeof(FRAME_HDR)+sizeof(AFRAME_INFO),real_data,real_len);
 
 	/*---#放入循环缓冲池------------------------------------------------------------*/
 	int i = 0;
@@ -588,10 +630,13 @@ int audio_send_frame_to_cirbuf(IMPAudioFrame *buf)
 *******************************************************************************/
 int audio_init(void)
 {
-	//int ret;
+	int ret;
 
-	audio_in_init();
-	audio_out_init();
+	ret = audio_in_init();
+	if(ret < 0) return HLE_RET_ERROR;
+	
+	ret = audio_out_init();
+	if(ret < 0) return HLE_RET_ERROR;
 	
 	/*---#获取循环缓冲区的 handle ------------------------------------------------------------*/
 	int i = 0;
@@ -609,6 +654,9 @@ int audio_init(void)
 	
 	}
 
+	ret = AENC_G711_init();
+	if(ret < 0) return HLE_RET_ERROR;
+	
 	
 	return HLE_RET_OK;
 }
@@ -624,20 +672,187 @@ int audio_init(void)
 *******************************************************************************/
 int audio_exit(void)
 {
-
+	AENC_G711_exit();
+	 	
 	audio_in_exit();
 	audio_out_exit();
+
+	
 
 	/*---#释放全局变量---------------------------------------------------------*/
 	memset(&cirbuf_handle,0,sizeof(cirbuf_handle));
 	if(tmp_Aframe_buf)
 		free(tmp_Aframe_buf);
 	tmp_Aframe_buf_size = 0;
-		
+	
 	
 	return HLE_RET_OK;
 }
 
+
+/**********************************************************************************
+* 								AENC 部分代码  
+*	g711 + AAC 编码
+***********************************************************************************/
+#define AENC_PORTION
+
+/*******************************************************************************
+*@ Description    :SDK自带编码（g711/G726）初始化
+*@ Input          :
+*@ Output         :
+*@ Return         :成功：HLE_RET_OK ；失败 ： 错误码
+*@ attention      :
+*******************************************************************************/
+static int AENC_G711_init(void)
+{
+	int ret;
+	
+	/* audio encode create channel. */
+	IMPAudioEncChnAttr attr;
+	attr.type = PT_G711A; /* Use the My method to encoder. if use the system method is attr.type = PT_G711A; */
+	attr.bufSize = 20;
+	ret = IMP_AENC_CreateChn(AENC_CHANNEL, &attr);
+	if(ret != 0) {
+		ERROR_LOG("imp audio encode create channel failed\n");
+		return HLE_RET_ERROR;
+	}
+
+	return HLE_RET_OK;
+}
+
+/*******************************************************************************
+*@ Description    :
+*@ Input          :
+*@ Output         :
+*@ Return         :成功：HLE_RET_OK ；失败 ： 错误码
+*@ attention      :
+*******************************************************************************/
+static int AENC_G711_send_one_frame(void * buf_pcm,int len)
+{
+	int ret;
+	/* Send a frame to encode. */
+	IMPAudioFrame frm;
+	frm.virAddr = (uint32_t *)buf_pcm;
+	frm.len = len;
+	ret = IMP_AENC_SendFrame(AENC_CHANNEL, &frm);
+	if(ret != 0) {
+		ERROR_LOG("imp audio encode send frame failed\n");
+		return HLE_RET_ERROR;
+	}
+
+	return HLE_RET_OK;
+	
+}
+
+/*******************************************************************************
+*@ Description    :“获取g711编码帧”线程响应函数
+*@ Input          :
+*@ Output         :
+*@ Return         :成功：HLE_RET_OK ；失败 ： 错误码
+*@ attention      :
+*******************************************************************************/
+int  DEBUG_RECORD_G711_TO_FILE = 0; //1开;0关
+#define AUDIO_ENCODE_FILE "/tmp/g711_file.g711"
+#define RECORD_G711_FRAME_NUM 	150
+void* AENC_G711_get_frame_func(void*args)
+{
+	pthread_detach(pthread_self());
+
+	int ret;
+	int record_num = 0;
+	FILE *file_g711 = NULL;
+	
+	if(DEBUG_RECORD_G711_TO_FILE)
+	{
+		file_g711 = fopen(AUDIO_ENCODE_FILE, "wb");
+		if(file_g711 == NULL) {
+			ERROR_LOG("fopen %s failed\n", AUDIO_ENCODE_FILE);
+			pthread_exit(0);
+		}
+	}
+	
+	while(1/*后续要有退出条件*/) 
+	{
+		/* get audio encode frame. */
+		IMPAudioStream stream;
+		ret = IMP_AENC_PollingStream(AENC_CHANNEL, 1000);
+		if (ret != 0) {
+			ERROR_LOG("imp audio encode polling stream failed\n");
+			sleep(1);
+			continue;
+		}
+
+		ret = IMP_AENC_GetStream(AENC_CHANNEL, &stream, BLOCK);
+		if(ret != 0) {
+			ERROR_LOG("imp audio encode get stream failed\n");
+			sleep(1);
+			continue;
+		}
+		
+		
+		if(DEBUG_RECORD_G711_TO_FILE)	//保存到文件 
+		{
+			fwrite(stream.stream, 1, stream.len, file_g711);
+		}
+		else //	保存到循环缓冲区
+		{
+			audio_send_Aframe_to_cirbuf(&stream,AENC_STD_G711A);
+		}
+		
+		/* release stream. */
+		ret = IMP_AENC_ReleaseStream(AENC_CHANNEL, &stream);
+		if(ret != 0) {
+			ERROR_LOG("imp audio encode release stream failed\n");
+			break;
+		}
+
+		if(DEBUG_RECORD_G711_TO_FILE && ++record_num >= RECORD_G711_FRAME_NUM)
+		{
+			ERROR_LOG("********************Audio G711 record success*************************!\n");
+			DEBUG_RECORD_G711_TO_FILE = 0;
+			break;
+		}
+	}
+	
+	if(DEBUG_RECORD_G711_TO_FILE) 
+		fclose(file_g711);
+	
+	pthread_exit(0) ;
+	
+}
+
+/*******************************************************************************
+*@ Description    :创建“获取g711编码帧”线程
+*@ Input          :
+*@ Output         :
+*@ Return         :成功：HLE_RET_OK ；失败 ： 错误码
+*@ attention      :
+*******************************************************************************/
+int AENC_G711_get_frame_task(void)
+{
+	pthread_t tid;
+	int ret = pthread_create(&tid, NULL, AENC_G711_get_frame_func, NULL);
+	if (ret < 0) {
+		ERROR_LOG( "Create AENC_G711_get_frame_task failed!\n");
+		return HLE_RET_ERROR;
+	}
+			
+	return HLE_RET_OK;
+
+}
+
+static int AENC_G711_exit(void)
+{
+	int ret;
+	/* destroy the encode channel. */
+	ret = IMP_AENC_DestroyChn(AENC_CHANNEL);
+	if(ret != 0) {
+		ERROR_LOG("imp audio encode destroy channel failed\n");
+		return HLE_RET_ERROR;
+	}
+
+	return HLE_RET_OK;
+}
 
 
 
