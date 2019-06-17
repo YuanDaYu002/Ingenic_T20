@@ -16,12 +16,34 @@
 #include "video.h"
 #include "CircularBuffer.h"
 #include "typeport.h"
+#include "fifo.h"
 
-int audio_send_PCM_stream_to_speacker(void *buf,int size);
+
+typedef struct
+{
+    int getdata_enable;
+    int putdata_enable;
+    FIFO_HANDLE fifo;
+    pthread_mutex_t lock;
+    pthread_cond_t cond;
+} TALKBACK_CONTEXT;
+
+static TALKBACK_CONTEXT tb_ctx;  //对讲控制结构
+
+
+
+
 int audio_send_Aframe_to_cirbuf(void *buf,E_AENC_STANDARD enc_type);
 static int AENC_G711_init(void);
-static int AENC_G711_send_one_frame(void * buf_pcm,int len);
+static int AENC_G711_encode_one_frame(void * buf_pcm,int len);
 static int AENC_G711_exit(void);
+int talkback_start(int getmode, int putmode);
+static int talkback_ao_stop(void);
+int talkback_init(void);
+int talkback_exit(void);
+
+
+
 
 
 
@@ -313,12 +335,14 @@ int audio_out_init(void)
 	}
 
 	/* Step 3: enable AO channel. */
-	ret = IMP_AO_EnableChn(AO_DEVICE_ID, AO_CHANNEL_ID);
-	if (ret != 0) {
-		ERROR_LOG( "IMP_AO_EnableChn failed\n");
-		return HLE_RET_ERROR;
-	}
+//	ret = talkback_ao_start();
+//	if (ret != 0) {
+//		ERROR_LOG( "talkback_ao_start error!\n");
+//		return HLE_RET_ERROR;
+//	}
 
+	//talkback_start(0,1); //打开喇叭播放模式
+	
 	audio_set_AO_volume(80);
 	audio_set_AO_Gain(18);	
 
@@ -341,10 +365,11 @@ int audio_out_exit(void)
 		ERROR_LOG( "IMP_AO_FlushChnBuf error\n");
 		return HLE_RET_ERROR;
 	}
+	
 	/* Step 6: disable the audio channel. */
-	ret = IMP_AO_DisableChn(AO_DEVICE_ID, AO_CHANNEL_ID);
+	ret = talkback_ao_stop();
 	if (ret != 0) {
-		ERROR_LOG( "IMP_AO_DisableChn error\n");
+		ERROR_LOG( "talkback_ao_stop error\n");
 		return HLE_RET_ERROR;
 	}
 
@@ -410,9 +435,9 @@ void* audio_get_PCM_frame_func(void*args)
 		#endif
 	
 		//输送到AENC编码
-		AENC_G711_send_one_frame(frm.virAddr,frm.len);
+		AENC_G711_encode_one_frame(frm.virAddr,frm.len);
 	
-		//AI to AO ， MIC数据输出到喇叭
+		//AI to AO ， MIC数据输出到喇叭 //DEBUG
 		audio_send_PCM_stream_to_speacker(frm.virAddr,frm.len);
 
 		
@@ -628,6 +653,7 @@ int audio_send_Aframe_to_cirbuf(void *buf,E_AENC_STANDARD enc_type)
 *@ Return         :成功：HLE_RET_OK ；失败 ： 错误码
 *@ attention      :
 *******************************************************************************/
+int audio_inited = 0;
 int audio_init(void)
 {
 	int ret;
@@ -654,9 +680,10 @@ int audio_init(void)
 	
 	}
 
-	ret = AENC_G711_init();
+	ret = talkback_init();
 	if(ret < 0) return HLE_RET_ERROR;
 	
+	audio_inited = 1;
 	
 	return HLE_RET_OK;
 }
@@ -668,12 +695,13 @@ int audio_init(void)
 *@ Input          :
 *@ Output         :
 *@ Return         :成功：HLE_RET_OK ；失败 ： 错误码
-*@ attention      :
+*@ attention      :需要先停止对讲 talkback_stop
 *******************************************************************************/
 int audio_exit(void)
 {
-	AENC_G711_exit();
-	 	
+
+	talkback_exit();
+	
 	audio_in_exit();
 	audio_out_exit();
 
@@ -685,13 +713,14 @@ int audio_exit(void)
 		free(tmp_Aframe_buf);
 	tmp_Aframe_buf_size = 0;
 	
+	audio_inited = 0;
 	
 	return HLE_RET_OK;
 }
 
 
 /**********************************************************************************
-* 								AENC 部分代码  
+* 								AENC/ADEC  部分代码  
 *	g711 + AAC 编码
 ***********************************************************************************/
 #define AENC_PORTION
@@ -727,7 +756,7 @@ static int AENC_G711_init(void)
 *@ Return         :成功：HLE_RET_OK ；失败 ： 错误码
 *@ attention      :
 *******************************************************************************/
-static int AENC_G711_send_one_frame(void * buf_pcm,int len)
+static int AENC_G711_encode_one_frame(void * buf_pcm,int len)
 {
 	int ret;
 	/* Send a frame to encode. */
@@ -853,6 +882,349 @@ static int AENC_G711_exit(void)
 
 	return HLE_RET_OK;
 }
+
+
+
+
+
+
+#define TALKBACK_PORTION
+
+
+static int talkback_adec_start(void)
+{
+	int ret;
+	/* audio decoder create channel. */
+	IMPAudioDecChnAttr attr;
+	attr.type = PT_G711A;
+	attr.bufSize = 20;
+	attr.mode = ADEC_MODE_PACK;
+	ret = IMP_ADEC_CreateChn(ADEC_CHANNEL, &attr);
+	if(ret != 0) {
+		ERROR_LOG("imp audio decoder create channel failed\n");
+		return HLE_RET_ERROR;
+	}
+
+	ret = IMP_ADEC_ClearChnBuf(ADEC_CHANNEL);
+	if(ret != 0) {
+		ERROR_LOG("IMP_ADEC_ClearChnBuf failed\n");
+		return HLE_RET_ERROR;
+	}
+
+	return HLE_RET_OK;
+}
+
+/*******************************************************************************
+*@ Description    :解码一帧g711数据,并播放
+*@ Input          :
+*@ Output         :
+*@ Return         :
+*@ attention      :
+*******************************************************************************/
+static int talkback_adec_G711_frame_and_play(void*buf_g711,int len)
+{
+	if(NULL == buf_g711 || len <= 0)
+		return HLE_RET_EINVAL;
+	
+	int ret;
+	/* Send a frame to decoder. */
+	IMPAudioStream stream_in;
+	stream_in.stream = (uint8_t *)buf_g711;
+	stream_in.len = len;
+	ret = IMP_ADEC_SendStream(ADEC_CHANNEL, &stream_in, BLOCK);
+	if(ret != 0) {
+		ERROR_LOG("imp audio encode send frame failed\n");
+		return HLE_RET_ERROR;
+	}
+
+	/* get audio decoder frame. */
+	IMPAudioStream stream_out;
+	ret = IMP_ADEC_PollingStream(ADEC_CHANNEL, 1000);
+	if(ret != 0) {
+		ERROR_LOG("imp audio encode polling stream failed\n");
+		return HLE_RET_ERROR;
+	}
+
+	ret = IMP_ADEC_GetStream(ADEC_CHANNEL, &stream_out, BLOCK);
+	if(ret != 0) {
+		ERROR_LOG("imp audio decoder get stream failed\n");
+		return HLE_RET_ERROR;
+	}
+
+	//发送到AO 播放
+	ret = audio_send_PCM_stream_to_speacker(stream_out.stream,stream_out.len);
+	if(ret != 0) {
+		ERROR_LOG("audio_send_PCM_stream_to_speacker failed\n");
+		return HLE_RET_ERROR;
+	}
+		
+	/* release stream. */
+	ret = IMP_ADEC_ReleaseStream(ADEC_CHANNEL, &stream_out);
+	if(ret != 0) {
+		ERROR_LOG("imp audio decoder release stream failed\n");
+		return HLE_RET_ERROR;
+	}
+
+	return HLE_RET_OK;
+
+}
+
+
+
+static int talkback_adec_stop(void)
+{
+	int ret;
+	/* destroy the decoder channel. */
+	ret = IMP_ADEC_DestroyChn(ADEC_CHANNEL);
+	if(ret != 0) {
+		ERROR_LOG("imp audio decoder destroy channel failed\n");
+		return HLE_RET_ERROR;
+	}
+	return HLE_RET_OK;
+}
+
+
+static int talkback_ao_start(void)
+{
+	int ret;
+	/* Step 3: enable AO channel. */
+	ret = IMP_AO_EnableChn(AO_DEVICE_ID, AO_CHANNEL_ID);
+	if (ret != 0) {
+		ERROR_LOG( "IMP_AO_EnableChn failed\n");
+		return HLE_RET_ERROR;
+	}
+	return HLE_RET_ERROR;
+
+}
+
+static int talkback_ao_stop(void)
+{
+	int ret;
+	/* Step 6: disable the audio channel. */
+	ret = IMP_AO_DisableChn(AO_DEVICE_ID, AO_CHANNEL_ID);
+	if (ret != 0) {
+		ERROR_LOG( "IMP_AO_DisableChn error\n");
+		return HLE_RET_ERROR;
+	}
+	return HLE_RET_ERROR;
+	
+}
+
+
+
+
+
+/*******************************************************************************
+*@ Description    :对讲，获取本地编码数据
+*@ Input          :
+*@ Output         :<data>数据的首地址(编码数据格式：g711a)
+					<size>数据的长度
+*@ Return         :
+*@ attention      :没有数据时会阻塞
+					调用顺序：
+					audio_init()
+					audio_get_PCM_frame_task()
+					AENC_G711_get_frame_task()
+					talkback_start()
+					talkback_get_data()
+*******************************************************************************/
+int talkback_get_data(void *data, int *size)
+{
+	if (audio_inited == 0)
+        return HLE_RET_ENOTINIT;
+
+    pthread_mutex_lock(&tb_ctx.lock);
+    if (tb_ctx.getdata_enable == 0) {
+        pthread_mutex_unlock(&tb_ctx.lock);
+        return HLE_RET_ENOTINIT;
+    }
+
+    while (fifo_len(tb_ctx.fifo, 0) == 0) {
+        pthread_cond_wait(&tb_ctx.cond, &tb_ctx.lock);
+    }
+
+    *size = fifo_out(tb_ctx.fifo, data, *size, 0);
+
+    pthread_mutex_unlock(&tb_ctx.lock);
+    return HLE_RET_OK;
+
+}
+
+/*******************************************************************************
+*@ Description    :对讲，数据播放到speaker
+*@ Input          :<data>数据的首地址(编码数据格式：g711a)
+					<size>数据的长度
+*@ Output         :
+*@ Return         :成功：HLE_RET_OK ；失败 ： 错误码
+*@ attention      :	调用顺序：
+					audio_init()
+					audio_get_PCM_frame_task()
+					AENC_G711_get_frame_task()
+					talkback_start()
+					talkback_put_data()
+*******************************************************************************/
+int talkback_put_data(void *data, int size)
+{
+	if (audio_inited == 0)
+        return HLE_RET_ENOTINIT;
+
+	int ret;
+    pthread_mutex_lock(&tb_ctx.lock);
+    if (tb_ctx.putdata_enable == 0) {
+        pthread_mutex_unlock(&tb_ctx.lock);
+        return HLE_RET_ENOTINIT;
+    }
+    pthread_mutex_unlock(&tb_ctx.lock);
+
+#if 1
+	ret = talkback_adec_G711_frame_and_play(data,size);
+	if(ret < 0)
+	{
+		ERROR_LOG("talkback_adec_G711_frame_and_play failed !\n");
+		return HLE_RET_ERROR;
+	}
+#else
+    // todo
+#endif
+
+    return HLE_RET_OK;
+
+}
+
+int talkback_init(void)
+{
+	
+	int ret;
+	
+	/*---#初始化对讲缓存区------------------------------------------------------------*/
+	tb_ctx.getdata_enable = 0;
+	tb_ctx.putdata_enable = 0;
+	tb_ctx.fifo = fifo_malloc(TALKBACK_FIFO_SIZE);
+	if (tb_ctx.fifo == NULL)
+        return HLE_RET_ERROR;
+
+    pthread_mutex_init(&tb_ctx.lock, NULL);
+    pthread_cond_init(&tb_ctx.cond, NULL);
+	
+	/*---#初始化编解码通道------------------------------------------------------------*/
+	ret = AENC_G711_init();
+	if(ret < 0)
+	{
+		ERROR_LOG("AENC_G711_init error!\n");
+		return HLE_RET_ERROR;
+	}
+
+	
+
+
+	return HLE_RET_OK;
+
+}
+
+
+
+/*******************************************************************************
+*@ Description    :开启对讲
+*@ Input          :<getmode> 0:关闭MIC数据采集模式；1：打开MIC数据采集模式
+					<putmode>0:关闭喇叭播放模式； 1：打开喇叭播放模式
+*@ Output         :
+*@ Return         :
+*@ attention      :两个模式至少打开一个（不能同时为0）
+					需要先初始化（audio_init）
+*******************************************************************************/
+int talkback_start(int getmode, int putmode)
+{
+	if ((audio_inited == 0) || ((getmode == 0) && (putmode == 0)))
+		   return HLE_RET_ENOTINIT;
+	
+	   pthread_mutex_lock(&tb_ctx.lock);
+	   if (putmode) //喇叭播放模式
+	   {
+		   if (tb_ctx.putdata_enable) {
+			   pthread_mutex_unlock(&tb_ctx.lock);
+			   return HLE_RET_EBUSY;
+		   }
+	
+		   if (HLE_RET_OK != talkback_adec_start()) {
+			   pthread_mutex_unlock(&tb_ctx.lock);
+			   return HLE_RET_ERROR;
+		   }
+	
+		   if (HLE_RET_OK != talkback_ao_start()) {
+			   talkback_adec_stop();
+			   pthread_mutex_unlock(&tb_ctx.lock);
+			   return HLE_RET_ERROR;
+		   }
+	
+		   tb_ctx.putdata_enable = 1;
+	   }
+	
+	   if (getmode) { //MIC数据采集模式
+		   if (tb_ctx.getdata_enable) {
+			   pthread_mutex_unlock(&tb_ctx.lock);
+			   return HLE_RET_EBUSY;
+		   }
+	
+		   fifo_reset(tb_ctx.fifo, 0);
+		   tb_ctx.getdata_enable = 1;
+	   }
+	
+	   pthread_mutex_unlock(&tb_ctx.lock);
+	   DEBUG_LOG("talkback_start success\n");
+	   return HLE_RET_OK;
+
+	
+}
+
+
+/*******************************************************************************
+*@ Description    :停止对讲
+*@ Input          :
+*@ Output         :
+*@ Return         :
+*@ attention      :
+*******************************************************************************/
+int talkback_stop(void)
+{
+	if (audio_inited == 0)
+    return HLE_RET_ENOTINIT;
+
+    pthread_mutex_lock(&tb_ctx.lock);
+    if (tb_ctx.putdata_enable != 0) {
+        talkback_ao_stop();
+        talkback_adec_stop();
+        tb_ctx.putdata_enable = 0;
+    }
+
+    tb_ctx.getdata_enable = 0;
+    pthread_mutex_unlock(&tb_ctx.lock);
+
+    return HLE_RET_OK;
+	
+}
+
+
+int talkback_exit(void)
+{
+	//int ret;
+	/*---#释放对讲缓存区------------------------------------------------------------*/\
+	tb_ctx.putdata_enable = 0;
+    tb_ctx.getdata_enable = 0;
+    fifo_free_(tb_ctx.fifo, 0);
+    tb_ctx.fifo = NULL;
+    pthread_mutex_destroy(&tb_ctx.lock);
+    pthread_cond_destroy(&tb_ctx.cond);
+	
+	/*---#退出编解码通道------------------------------------------------------------*/
+	AENC_G711_exit();
+	
+	return HLE_RET_OK;
+}
+
+
+
+
+
 
 
 
