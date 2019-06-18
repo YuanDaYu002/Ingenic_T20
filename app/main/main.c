@@ -16,6 +16,7 @@
 
 
 #include "video.h"
+#include "audio.h"
 #include "osd.h"
 #include "encoder.h"
 #include "CircularBuffer.h"
@@ -152,14 +153,51 @@ int main(int argc,char*argv[])
 	if(ret < 0) goto ERR;
 	
 	/*---#从循环缓存池获取编码帧(H264 + AAC/PCM)，直接保存到文件-----------------------------------*/
-	#if 1
+	#if 0
 	ret = save_h264_file_from_cirbuf(IMAGE_SIZE_640x360,8,"/tmp/cirbuffer_chn_1.h264");	
 	if(ret < 0) goto ERR;
 	
 	ret = save_h264_file_from_cirbuf(IMAGE_SIZE_1920x1080,8,"/tmp/cirbuffer_chn_0.h264");
 	if(ret < 0) goto ERR;
 	#endif
-		
+
+	//播放g711文件 test
+	#if 0	//该种方式不能正常解码播放
+	sleep(3);
+	char buf[1024] = {0};
+	FILE* fd = fopen("/system/bin/g711_file.g711","r");
+
+	DEBUG_LOG("********************fopen file success!****************\n");
+	while(1)
+	{
+		ret = fread(buf, 1, 1024, fd);
+		if(ret > 0)
+		{
+			DEBUG_LOG("playing file.....ret(%d)\n",ret);
+			ret = ADEC_G711_decode_frame_and_play(buf,ret);
+			if(ret < 0)
+			{
+				ERROR_LOG("ADEC_G711_decode_frame_and_play error!\n");
+				continue;
+			}
+		}
+		else if(0 == ret)
+		{
+			DEBUG_LOG("*********************play g7ll file finished !*********************\n");
+			break;
+		}
+		else
+		{
+			ERROR_LOG("read file error!\n");
+		}
+			
+	}
+
+	fclose(fd);
+	
+	#endif 
+
+	
 	int i= 10;//延迟多少秒自动退出（DEBUG）
 	while(1)
 	{
@@ -176,6 +214,22 @@ ERR:
 	
 	return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

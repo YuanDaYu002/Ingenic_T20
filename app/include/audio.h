@@ -63,67 +63,20 @@ int AENC_G711_get_frame_task(void);
 					<size>数据大小
 *@ Output         :
 *@ Return         :成功：HLE_RET_OK ；失败 ： 错误码
-*@ attention      :
+*@ attention      :同一时间只能有一个地方调用
 *******************************************************************************/
 int audio_send_PCM_stream_to_speacker(void *buf,int size);
 
 
-
-
-
 /*******************************************************************************
-*@ Description    :开启对讲
-*@ Input          :<getmode> 0:关闭MIC数据采集模式；1：打开MIC数据采集模式
-					<putmode>0:关闭喇叭播放模式； 1：打开喇叭播放模式
-*@ Output         :
-*@ Return         :
-*@ attention      :两个模式至少打开一个（不能同时为0）
-					需要先初始化（audio_init）
-*******************************************************************************/
-int talkback_start(int getmode, int putmode);
-
-
-/*******************************************************************************
-*@ Description    :对讲，获取本地编码数据
-*@ Input          :
-*@ Output         :<data>数据的首地址(编码数据格式：g711a)
-					<size>数据的长度
-*@ Return         :
-*@ attention      :没有数据时会阻塞
-					调用顺序：
-					audio_init()
-					audio_get_PCM_frame_task()
-					AENC_G711_get_frame_task()
-					talkback_start()
-					talkback_get_data()
-*******************************************************************************/
-int talkback_get_data(void *data, int *size);
-
-
-/*******************************************************************************
-*@ Description    :对讲，数据播放到speaker
-*@ Input          :<data>数据的首地址(编码数据格式：g711a)
-					<size>数据的长度
+*@ Description    :解码一帧g711数据,并用speaker播放
+*@ Input          :<buf_g711> g711数据
+					<len> 数据长度
 *@ Output         :
 *@ Return         :成功：HLE_RET_OK ；失败 ： 错误码
-*@ attention      :	调用顺序：
-					audio_init()
-					audio_get_PCM_frame_task()
-					AENC_G711_get_frame_task()
-					talkback_start()
-					talkback_put_data()
+*@ attention      :内部已经调用 audio_send_PCM_stream_to_speacker
 *******************************************************************************/
-int talkback_put_data(void *data, int size);
-
-/*******************************************************************************
-*@ Description    :停止对讲
-*@ Input          :
-*@ Output         :
-*@ Return         :
-*@ attention      :
-*******************************************************************************/
-int talkback_stop(void); 
-
+int ADEC_G711_decode_frame_and_play(void*buf_g711,int len);
 
 
 /*******************************************************************************
@@ -142,6 +95,8 @@ int audio_exit(void);
 #endif	 
 	 
 #endif
+
+
 
 
 
