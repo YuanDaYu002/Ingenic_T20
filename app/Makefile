@@ -44,6 +44,7 @@ INC_FLAGS = -I$(SDK_PATH)/include/imp
 INC_FLAGS += -I$(SDK_PATH)/include/sysutils
 INC_FLAGS += -I$(MY_PATH)/include
 INC_FLAGS += -I$(MY_PATH)/3rdinc
+INC_FLAGS += -I$(MY_PATH)/3rdinc/faac
 
 ####################################################################################
 SENSOR_TYPE ?=
@@ -54,7 +55,8 @@ SENSOR_LIBS =
 SDK_LIBS = $(SDK_LIB_DIR)/libimp.a $(SDK_LIB_DIR)/libsysutils.a  $(SDK_LIB_DIR)/libalog.a
 
 #LIBS +=  -limp  -lsysutils  -lalog 
-LIBS = $(SDK_LIBS) -lpthread -ldl -lm  -lc  -lrt    
+LIBS = $(SDK_LIBS) -lpthread -ldl -lm  -lc  -lrt 
+LIBS += -lfaac
 
 
 ########################################################################

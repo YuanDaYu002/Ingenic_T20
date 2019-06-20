@@ -216,13 +216,22 @@ int encoder_system_start(void)
 		return HLE_RET_ERROR;
 	}
 
+#if USE_G711_AENC
 	ret = AENC_G711_get_frame_task();
 	if(ret < 0) 
 	{
 		ERROR_LOG("create AENC_G711_get_frame_task failed !\n");
 		return HLE_RET_ERROR;
 	}
-	
+#else
+
+	ret = AENC_AAC_get_frame_task();
+	if(ret < 0) 
+	{
+		ERROR_LOG("create AENC_AAC_get_frame_task failed !\n");
+		return HLE_RET_ERROR;
+	}
+#endif
 	/*---#创建OSD实时更新线程-----------------------------------------------------*/
 	ret = timestamp_update_task();
 	if(ret < 0) 
@@ -290,6 +299,7 @@ int encoder_system_exit(void)
 	return HLE_RET_OK;
 	
 }
+
 
 
 
