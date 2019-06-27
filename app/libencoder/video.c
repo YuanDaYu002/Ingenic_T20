@@ -299,7 +299,7 @@ static int video_send_Vframe_to_CirBuf(IMPEncoderStream *stream,int index)
 	int Iframe_flag = stream_is_Iframe(stream);
 	if(1 == Iframe_flag)
 	{
-		DEBUG_LOG("index[%d] received I frame! gop=%d\n",index,gop[index]);
+		//DEBUG_LOG("index[%d] received I frame! gop=%d\n",index,gop[index]);
 		gop[index] = 1;
 		head_len = sizeof(FRAME_HDR) + sizeof(IFRAME_INFO);
 		frame_size += head_len;
@@ -336,6 +336,7 @@ static int video_send_Vframe_to_CirBuf(IMPEncoderStream *stream,int index)
 				return HLE_RET_ENORESOURCE;
 			}
 			TmpStreamBufferSize[index] = frame_size;
+			DEBUG_LOG("realloc success!\n");
 		}
 		
 		memset(TmpStreamBuffer[index],0,TmpStreamBufferSize[index]);
@@ -454,7 +455,7 @@ int video_init(void)
 			
             if (S_RC_METHOD == ENC_RC_MODE_CBR) {
                 rc_attr->attrRcMode.rcMode = ENC_RC_MODE_CBR;
-                rc_attr->attrRcMode.attrH264Cbr.outBitRate = (double)2000.0 * (imp_chn_attr_tmp->picWidth * imp_chn_attr_tmp->picHeight) / (1280 * 720);
+                rc_attr->attrRcMode.attrH264Cbr.outBitRate = (double)1000.0 * (imp_chn_attr_tmp->picWidth * imp_chn_attr_tmp->picHeight) / (1280 * 720);
                 rc_attr->attrRcMode.attrH264Cbr.maxQp = 45;
                 rc_attr->attrRcMode.attrH264Cbr.minQp = 15;
                 rc_attr->attrRcMode.attrH264Cbr.iBiasLvl = 0;
@@ -611,9 +612,24 @@ void *video_get_h264_frame_func(void *args)
 
 	int n = 0;
 	int debug_count = 30; //多少帧打印一次
+
+	struct timeval start_time = {0};
+    struct timeval curr_time = {0};
+	int frame_count = 0;
+	gettimeofday(&curr_time,NULL);
+	memcpy(&start_time,&curr_time,sizeof(struct timeval));
 	
 	while(1/*继续获取H264编码*/) //后续完善 终止条件
 	{
+		//DEBUG
+		gettimeofday(&curr_time,NULL);
+		if(curr_time.tv_sec - start_time.tv_sec >=1)
+		{
+			//DEBUG_LOG("H264 frame rate = %d\n",frame_count);
+			//memcpy(&start_time,&curr_time,sizeof(struct timeval));
+			frame_count = 0;
+		}
+		
 		ret = IMP_Encoder_PollingStream(i, 1000);
 		if (ret < 0) 
 		{
@@ -637,6 +653,9 @@ void *video_get_h264_frame_func(void *args)
 			ERROR_LOG( "IMP_Encoder_GetStream() failed\n");
 			continue;
 		}
+		
+		//DEBUG
+		frame_count++;
 		
 		video_send_Vframe_to_CirBuf(&stream,i);//加锁在循环buffer放入数据的时候有
 
@@ -949,6 +968,11 @@ static int jpeg_exit(void)
 	
 	return HLE_RET_OK;
 }
+
+
+
+
+
 
 
 

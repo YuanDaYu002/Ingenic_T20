@@ -12,7 +12,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <string.h>
-
+#include <stdlib.h>
 
 
 #include "video.h"
@@ -20,6 +20,8 @@
 #include "osd.h"
 #include "encoder.h"
 #include "CircularBuffer.h"
+#include "fmp4_interface.h"
+
 
 
 extern int get_image_size(E_IMAGE_SIZE image_size, int *width, int *height);
@@ -128,7 +130,23 @@ ERR:
 }
 
 
+// 本机大端返回1，小端返回0
+int my_checkCPUendian(void)
+{
+       union{
+                unsigned long int i;
+                unsigned char s[4];
+              }c;
 
+       c.i = 0x12345678;
+	   printf("c.s[0] = %#x\n",c.s[0]);
+       return (0x12 == c.s[0]);
+}
+
+
+
+extern int fmp4_record(fmp4_out_info_t* info);
+extern int ts_record(void **out_buf,int* out_len,int recode_time);
 int main(int argc,char*argv[])
 {
 	int ret;
@@ -153,12 +171,12 @@ int main(int argc,char*argv[])
 	if(ret < 0) goto ERR;
 	
 	/*---#从循环缓存池获取编码帧(H264 + AAC/PCM)，直接保存到文件-----------------------------------*/
-	#if 0
-	ret = save_h264_file_from_cirbuf(IMAGE_SIZE_640x360,8,"/tmp/cirbuffer_chn_1.h264");	
-	if(ret < 0) goto ERR;
+	#if 1
+//	ret = save_h264_file_from_cirbuf(IMAGE_SIZE_640x360,8,"/tmp/cirbuffer_chn_1.h264");	
+//	if(ret < 0) goto ERR;
 	
-	ret = save_h264_file_from_cirbuf(IMAGE_SIZE_1920x1080,8,"/tmp/cirbuffer_chn_0.h264");
-	if(ret < 0) goto ERR;
+//	ret = save_h264_file_from_cirbuf(IMAGE_SIZE_1920x1080,8,"/tmp/cirbuffer_chn_0.h264");
+//	if(ret < 0) goto ERR;
 	#endif
 
 	//播放g711文件 test
@@ -197,6 +215,65 @@ int main(int argc,char*argv[])
 	
 	#endif 
 
+
+	/*---#测试fmp4文件录制，该部分录制的文件格式正确，但態解码出来视频，
+	因为牵涉到HLS协议不兼容 MP4 + M3U8 ，后续再调试------------------------------*/
+//	fmp4_out_info_t fmp4_info = {0};
+//	#if 0
+//	fmp4_info.file_mode.file_name = "/tmp/t20_fmp4_1920x1080_.mp4";
+//	#else
+//	fmp4_info.buf_mode.buf_start = (unsigned char*)malloc(1024*1024*5);
+//	if(NULL == fmp4_info.buf_mode.buf_start)
+//	{
+//		ERROR_LOG("malloc failed!\n");
+//		return -1;
+//	}
+//	memset(fmp4_info.buf_mode.buf_start,0,1024*1024*5);
+//	fmp4_info.buf_mode.w_offset = 0;
+//	fmp4_info.buf_mode.buf_size = 1024*1024*5;
+//	
+//	#endif
+//	fmp4_info.recode_time = 8; //录制的 s 数
+//	if(fmp4_record(&fmp4_info) < 0)
+//	{
+//		ERROR_LOG("fmp4 record failed!\n");
+//		
+//	}
+	/*---#------------------------------------------------------------*/
+
+
+	/*---#录6s预录视频------------------------------------------------------------*/
+	void* out_buf = NULL;
+    int out_len = 0;
+	if(ts_record(&out_buf,&out_len,15) < 0)
+	{
+		ERROR_LOG("ts_record failed!\n");
+		return -1;
+	}
+
+	int fd = open("/tmp/T20_ts_main.ts",O_RDWR|O_CREAT|O_TRUNC,0755);
+	if(fd < 0)
+	{
+		ERROR_LOG("open /tmp/T20_ts_main.ts failed!\n");
+		return -1;
+	}
+
+	ret = write(fd,out_buf,out_len);
+	if(ret != out_len)
+	{
+		ERROR_LOG("write file failed!\n");
+		close(fd);
+		return -1;
+	}
+
+	close(fd);
+	free(out_buf);
+	/*---#------------------------------------------------------------*/
+	
+			
+
+	
+	DEBUG_LOG("--------checkCPUendian ret (%d)\n",my_checkCPUendian());
 	
 	int i= 10;//延迟多少秒自动退出（DEBUG）
 	while(1)
@@ -214,6 +291,22 @@ ERR:
 	
 	return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

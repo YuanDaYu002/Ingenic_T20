@@ -53,7 +53,7 @@
 	 int				 recod_exit;//写完文件后标记退出
  }AAC_record_file_t;
  AAC_record_file_t AAC_file = {0};
-#define switch_record_AAC  1 	//1：打开总控制开关 0：关闭
+#define switch_record_AAC  0 	//1：打开总控制开关 0：关闭
 
 
 
@@ -124,7 +124,7 @@
 	 //调整配置参数
 	#if 1 
 		 pConfiguration->inputFormat = FAAC_INPUT_16BIT;
-		 pConfiguration->outputFormat = 1; /*0 - raw; 1 - ADTS 本地播放请选择 1 */  
+		 pConfiguration->outputFormat = 0; /*0 - raw; 1 - ADTS 本地播放请选择 1 */  
 		 pConfiguration->bitRate = PCM_SAMPLE_RATE;  //库内部默认为64000
 		 pConfiguration->useTns = 0;
 		 pConfiguration->allowMidside = 1;

@@ -874,7 +874,7 @@ void* audio_get_PCM_frame_func(void*args)
 		#if DEBUG_WRITE_PCM_TO_FILE	//debug
 			fwrite(frm.virAddr, 1, frm.len, record_file);
 		#else	//直接放入循环缓存buffer，注意 PCM/AAC/g711 只能放入一种格式的帧到循环buffer
-			audio_send_Aframe_to_cirbuf(&frm,AENC_STD_ADPCM); 
+			//audio_send_Aframe_to_cirbuf(&frm,AENC_STD_ADPCM); 
 		#endif
 
 		#if USE_G711_AENC	//输送到G711编码
@@ -1171,6 +1171,7 @@ int audio_exit(void)
 	
 	return HLE_RET_OK;
 }
+
 
 
 
