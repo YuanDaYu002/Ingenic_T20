@@ -644,10 +644,10 @@ int  Fmp4_encode_init(fmp4_out_info_t * info,void*IDR_frame,unsigned int IDR_len
 	#endif
 	
 	//--- trak audio 分支 -----------------------------------------------------------
-//	unsigned int count_stblA_size = 0;
-//	unsigned int count_dinfA_size = 0;
-//	unsigned int count_minfA_size = 0;
-//	unsigned int count_mdiaA_size = 0;
+	unsigned int count_stblA_size = 0;
+	unsigned int count_dinfA_size = 0;
+	unsigned int count_minfA_size = 0;
+	unsigned int count_mdiaA_size = 0;
 	unsigned int count_trakA_size = 0;
 	
 	#if HAVE_AUDIO
@@ -1107,7 +1107,7 @@ int	remuxVideo(void *video_frame,unsigned int frame_length,unsigned int frame_ra
 		*/
 		video_frame =(char*)video_frame + I_offset ;
 		frame_length = frame_length - I_offset;
-		print_char_array((unsigned char*)"I NALU :", (unsigned char*)video_frame , 10);
+		print_char_array("I NALU :",video_frame , 10);
 		#endif
 		
 	}
@@ -1132,15 +1132,13 @@ int	remuxVideo(void *video_frame,unsigned int frame_length,unsigned int frame_ra
 	}
 	
 	 //将该帧放到暂存区，最大只存1S的数据
-	 FMP4_DEBUG_LOG("buf_remux_video.frame_rate(%d)\n",buf_remux_video.frame_rate);
+	// FMP4_DEBUG_LOG("buf_remux_video.frame_rate(%d)\n",buf_remux_video.frame_rate);
 	if(buf_remux_video.frame_count < buf_remux_video.frame_rate)//缓存区的帧数不够1S，继续将帧数据放入缓存区
 	{
 		if(buf_remux_video.write_pos + frame_length > buf_remux_video.remux_video_buf + REMUX_VIDEO_BUF_SIZE)
 		{
 			//缓存大小不够，退出。(指初始化的缓存区不够缓存一秒的编码数据的，因打包mdat box按照1S一个box打包)
 			FMP4_ERROR_LOG("remux_video_buf is not enough to story one mdat box data !\n");
-			FMP4_ERROR_LOG("buf_remux_video.frame_count(%d) buf_remux_video.frame_rate(%d) frame_length(%d)\n",
-							buf_remux_video.frame_count,buf_remux_video.frame_rate,frame_length);
 			free(buf_remux_video.remux_video_buf);
 			return -1;
 		}
@@ -1163,7 +1161,7 @@ int	remuxVideo(void *video_frame,unsigned int frame_length,unsigned int frame_ra
            #endif
 			
 			buf_remux_video.frame_count ++;
-			buf_remux_video.sample_info[buf_remux_video.write_index].sample_pos = (char*)buf_remux_video.write_pos;
+			buf_remux_video.sample_info[buf_remux_video.write_index].sample_pos = buf_remux_video.write_pos;
 			buf_remux_video.sample_info[buf_remux_video.write_index].sample_len = frame_length;
 			buf_remux_video.write_pos += frame_length;
 			
@@ -1196,9 +1194,9 @@ int	remuxVideo(void *video_frame,unsigned int frame_length,unsigned int frame_ra
 											};
 			memcpy((unsigned char*)&buf_remux_video.sample_info[buf_remux_video.write_index].trun_sample.sample_flags,sample_flags,sizeof(sample_flags));
 
-		/*	FMP4_DEBUG_LOG("buf_remux_video.sample_info[buf_remux_video.write_index].trun_sample.sample_flags(%d)\n",\
+			FMP4_DEBUG_LOG("buf_remux_video.sample_info[buf_remux_video.write_index].trun_sample.sample_flags(%d)\n",\
 					   buf_remux_video.sample_info[buf_remux_video.write_index].trun_sample.sample_flags);
-		*/
+
 			//buf_remux_video.sample_info[buf_remux_video.write_index].trun_sample.sample_flags = t_htonl(16842752);
 			#endif
 			
@@ -1231,7 +1229,6 @@ int	remuxVideo(void *video_frame,unsigned int frame_length,unsigned int frame_ra
 			FMP4_DEBUG_LOG("...\n");
 			usleep(1000*100);  
 		}
-		FMP4_DEBUG_LOG("remux v write success!\n");
 
 		//指针归位，buf又循环重写 放到 remuxVideoAudio（）函数做了
 		/*
@@ -1351,7 +1348,7 @@ int	remuxAudio(void *audio_frame,unsigned int frame_length,unsigned int frame_ra
 	去掉头7个字节的ADTS头：
 	*/
 	adts_fixed_header_t *adts_header = (adts_fixed_header_t*)audio_frame;
-	print_char_array((unsigned char*)"ADTS:", audio_frame, 10);
+	print_char_array("ADTS:", audio_frame, 10);
 	if((unsigned char)adts_header->syncword == 0xFF)
 	{
 		#if 1
@@ -1382,7 +1379,7 @@ int	remuxAudio(void *audio_frame,unsigned int frame_length,unsigned int frame_ra
 			free(buf_remux_audio.remux_audio_buf);
 			return -1;
 		}
-		print_char_array((unsigned char*)"input Audio mdat samples:",audio_frame,16); //debug
+		print_char_array("input Audio mdat samples:",audio_frame,16); //debug
 			
 		pthread_mutex_lock(&buf_remux_audio.mut);
 		memcpy(buf_remux_audio.write_pos , audio_frame , frame_length);
@@ -1468,7 +1465,7 @@ int buf_cpy(void *dst,void *src ,unsigned int cpy_len, unsigned int offset,unsig
 
 	if(offset < 0 ||offset + cpy_len > buf_size)
 	{
-		FMP4_ERROR_LOG("offset out of range ! buf_size(%d) offset(%d) cpy_len(%d)\n",buf_size,offset,cpy_len);
+		FMP4_ERROR_LOG("offset out of range ! \n");
 		if(offset + cpy_len > buf_size)
 		{
 			FMP4_ERROR_LOG("offset + cpy_len > buf_size!\n");
@@ -1497,7 +1494,7 @@ unsigned int mfra_box_rebuid(OUT mfra_box**mfraBox,OUT unsigned int *len)
 	//重新计算mfra box的总长度
 	unsigned int mfra_len = t_ntohl(fmp4BOX.mfraBox->header.size);
 	unsigned int tfra_video_len = 0;
-//	unsigned int tfra_audio_len = 0;
+	unsigned int tfra_audio_len = 0;
 	
 	FMP4_DEBUG_LOG("mfra_len(%d)\n",mfra_len);
 	#if HAVE_VIDEO
@@ -1592,14 +1589,7 @@ unsigned int mfra_box_rebuid(OUT mfra_box**mfraBox,OUT unsigned int *len)
 */
 int last_data_put_ok = 0 ;  //临时DEBUG
 
-#if PLATFORM_HISI
-#define moof_mdat_buf_size (1024*300) //海思 
-#elif PLATFORM_INGENIC
-#define moof_mdat_buf_size (1024*300*3)// 君正
-#else
-
-#endif
-
+#define moof_mdat_buf_size (1024*500)
 static unsigned int Sequence_number = 0; //mfhd-->Sequence number的记录
 static unsigned int tfra_audio_time = 0; //记录audio tfra box下的time信息
 static unsigned int tfra_video_time = 1024; //记录video tfra box下的time信息
@@ -1607,19 +1597,26 @@ void * remuxVideoAudio(void *args)
 {
 	pthread_detach(pthread_self());	
 	
-	if(NULL == buf_remux_video.remux_video_buf || NULL == buf_remux_audio.remux_audio_buf)
+	if(NULL == buf_remux_video.remux_video_buf)
 	{
 		FMP4_ERROR_LOG("remux not init!\n");
 		pthread_exit(0);
 	}
-	//当前 moof + mdat box 组合的缓冲buf ，直接写文件太慢
-	unsigned char* moof_mdat_buf = (unsigned char*)malloc(moof_mdat_buf_size);
-	if(NULL == moof_mdat_buf)
+#if HAVE_AUDIO
+	if(NULL == buf_remux_audio.remux_audio_buf)
 	{
-		FMP4_ERROR_LOG("malloc failed !\n");
+		FMP4_ERROR_LOG("remux not init!\n");
 		pthread_exit(0);
 	}
-	memset(moof_mdat_buf,0,moof_mdat_buf_size);
+#endif
+	//当前 moof + mdat box 组合的缓冲buf ，直接写文件太慢
+	unsigned char* moof_mdat_buf = (unsigned char*)malloc(moof_mdat_buf_size);
+	   if(NULL == moof_mdat_buf)
+	   {
+	   		FMP4_ERROR_LOG("malloc failed !\n");
+			return NULL;
+	   }
+	   memset(moof_mdat_buf,0,moof_mdat_buf_size);
 	  
 	unsigned int buf_offset = 0;//描述moof_mdat_buf中的偏移
 	int i = 0;
@@ -1676,7 +1673,9 @@ void * remuxVideoAudio(void *args)
 			fmp4BOX.moofBox->header.size = t_htonl(moof_box_len);
 
 			//先加上mdat自身的长度
-			mdat_box_len = t_ntohl(fmp4BOX.mdatBox->header.size );
+			mdat_box_len = t_ntohl(fmp4BOX.mdatBox->header.size );//理应是8字节
+			FMP4_DEBUG_LOG("======DEBUG===t_ntohl(fmp4BOX.mdatBox->header.size) = %u\n",mdat_box_len);
+			
 			//先记录 moof在文件中的起始位置，tfhd box中需要该参数
 			fmp4_file_lable.moofBox_offset = (out_mode == SAVE_IN_FILE) ? ftell(file_handle) : out_info->buf_mode.w_offset;
 
@@ -1780,17 +1779,13 @@ void * remuxVideoAudio(void *args)
 
 			//===公共部分box 写入文件==========================================================================
 			//moof
-			fmp4_file_lable.moofBox_offset = ((out_mode == SAVE_IN_FILE)? ftell(file_handle) + buf_offset : \
+			fmp4_file_lable.moofBox_offset = ((out_mode == SAVE_IN_FILE)? \
+											ftell(file_handle) + buf_offset : \
 											out_info->buf_mode.w_offset + buf_offset);
 			
-			FMP4_DEBUG_LOG("fmp4BOX.moofBox address (%p)",fmp4BOX.moofBox);
-			FMP4_DEBUG_LOG("fmp4BOX.moofBox->header.type = %4s\n",fmp4BOX.moofBox->header.type);
-			if(buf_cpy(moof_mdat_buf , fmp4BOX.moofBox , sizeof(moof_box) , buf_offset,moof_mdat_buf_size) < 0)
-			{
-				FMP4_ERROR_LOG("buf_cpy  failed!\n");
-				pthread_exit(0);
-			}
-			
+				FMP4_DEBUG_LOG("fmp4BOX.moofBox address (%p)",fmp4BOX.moofBox);
+				FMP4_DEBUG_LOG("fmp4BOX.moofBox->header.type = %4s\n",fmp4BOX.moofBox->header.type);
+			buf_cpy(moof_mdat_buf , fmp4BOX.moofBox , sizeof(moof_box) , buf_offset,moof_mdat_buf_size);
 			buf_offset += sizeof(moof_box);
 
 			//mfhd
@@ -1799,13 +1794,9 @@ void * remuxVideoAudio(void *args)
 											 out_info->buf_mode.w_offset + buf_offset;
 			Sequence_number = Sequence_number +1;
 			fmp4BOX.mfhdBox->sequence_number = t_htonl(Sequence_number);//填充片段的序号，以递增的方式
-			if(buf_cpy(moof_mdat_buf , fmp4BOX.mfhdBox , sizeof(mfhd_box) , buf_offset,moof_mdat_buf_size) < 0)	
-			{
-				FMP4_ERROR_LOG("buf_cpy  failed! moof_mdat_buf_size(%d) buf_offset(%d) copy size(%d)\n",moof_mdat_buf_size,buf_offset,sizeof(mfhd_box));
-				pthread_exit(0);
-			}
+			buf_cpy(moof_mdat_buf , fmp4BOX.mfhdBox , sizeof(mfhd_box) , buf_offset,moof_mdat_buf_size);
 			buf_offset += sizeof(mfhd_box);
-			
+
 			//=== traf box 部分写入文件 ==========================================================================
 			if(have_video)
 			{
@@ -1815,13 +1806,7 @@ void * remuxVideoAudio(void *args)
 				fmp4_file_lable.traf_video_offset.trafBox_offset = (out_mode == SAVE_IN_FILE)?\
 											 						ftell(file_handle) + buf_offset:\
 											 						out_info->buf_mode.w_offset + buf_offset;;	
-				if(buf_cpy(moof_mdat_buf , fmp4BOX.traf_video->trafBox , sizeof(traf_box) , buf_offset,moof_mdat_buf_size)<0)
-				{
-					FMP4_ERROR_LOG("buf_cpy  failed!\n");
-					pthread_mutex_unlock(&buf_remux_video.mut);
-					pthread_exit(0);
-				}
-				
+				buf_cpy(moof_mdat_buf , fmp4BOX.traf_video->trafBox , sizeof(traf_box) , buf_offset,moof_mdat_buf_size);
 				buf_offset += sizeof(traf_box);
 				
 				//tfhd
@@ -1833,13 +1818,7 @@ void * remuxVideoAudio(void *args)
 				fmp4_file_lable.traf_video_offset.tfhdBox_offset = (out_mode == SAVE_IN_FILE)?\
 																	 ftell(file_handle) + buf_offset:\
 																	 out_info->buf_mode.w_offset + buf_offset;	
-				if(buf_cpy(moof_mdat_buf , fmp4BOX.traf_video->tfhdBox , sizeof(tfhd_box) , buf_offset,moof_mdat_buf_size)<0)
-				{
-					FMP4_ERROR_LOG("buf_cpy  failed!\n");
-					pthread_mutex_unlock(&buf_remux_video.mut);
-					pthread_exit(0);
-				}
-				
+				buf_cpy(moof_mdat_buf , fmp4BOX.traf_video->tfhdBox , sizeof(tfhd_box) , buf_offset,moof_mdat_buf_size);
 				buf_offset += sizeof(tfhd_box);
 
 				//---tfdt--------------------------------------------------------------------------------------
@@ -1849,14 +1828,8 @@ void * remuxVideoAudio(void *args)
 																	 out_info->buf_mode.w_offset + buf_offset;	
 				//修正 tfdt ---> Base media decode time 参数
 				fmp4BOX.traf_video->tfdtBox->baseMediaDecodeTime = t_htonl(tfra_video_time);
-				if(buf_cpy(moof_mdat_buf , fmp4BOX.traf_video->tfdtBox ,\
-						t_ntohl(fmp4BOX.traf_video->tfdtBox->header.size) , buf_offset,moof_mdat_buf_size)<0)
-				{
-					FMP4_ERROR_LOG("buf_cpy  failed!\n");
-					pthread_mutex_unlock(&buf_remux_video.mut);
-					pthread_exit(0);
-				}
-						
+				buf_cpy(moof_mdat_buf , fmp4BOX.traf_video->tfdtBox ,\
+						t_ntohl(fmp4BOX.traf_video->tfdtBox->header.size) , buf_offset,moof_mdat_buf_size);
 				buf_offset += t_ntohl(fmp4BOX.traf_video->tfdtBox->header.size);
 
 				//---trun--------------------------------------------------------------------------------------
@@ -1876,14 +1849,8 @@ void * remuxVideoAudio(void *args)
 
 				//fmp4BOX.traf_video->trunBox->first_sample_flags = ;//暂时不赋值 ，已经在初始化时做了。
 				
-				if(buf_cpy(moof_mdat_buf , fmp4BOX.traf_video->trunBox ,\
-						sizeof(trun_box), buf_offset,moof_mdat_buf_size)<0)
-				{
-					FMP4_ERROR_LOG("buf_cpy  failed!\n");
-					pthread_mutex_unlock(&buf_remux_video.mut);
-					pthread_exit(0);
-				}
-						
+				buf_cpy(moof_mdat_buf , fmp4BOX.traf_video->trunBox ,\
+						sizeof(trun_box), buf_offset,moof_mdat_buf_size);
 				buf_offset += sizeof(trun_box);
 				//拷贝trun--->samples info
 				FMP4_DEBUG_LOG("t_ntohl(buf_remux_video.sample_info[0].trun_sample.sample_size(%ld)\n",\
@@ -1891,14 +1858,8 @@ void * remuxVideoAudio(void *args)
 				for(i = 0;i < buf_remux_video.write_index;i++)
 				{
 					tfra_video_time +=  t_ntohl(buf_remux_video.sample_info[i].trun_sample.sample_duration); 
-					if(buf_cpy(moof_mdat_buf , (unsigned char*)&buf_remux_video.sample_info[i].trun_sample,
-						sizeof(trun_V_sample_t), buf_offset,moof_mdat_buf_size)<0)
-					{
-						FMP4_ERROR_LOG("buf_cpy  failed!\n");
-						pthread_mutex_unlock(&buf_remux_video.mut);
-						pthread_exit(0);
-					}
-						
+					buf_cpy(moof_mdat_buf , (unsigned char*)&buf_remux_video.sample_info[i].trun_sample,
+						sizeof(trun_V_sample_t), buf_offset,moof_mdat_buf_size);
 					buf_offset += sizeof(trun_V_sample_t);
 				}
 				FMP4_DEBUG_LOG("debug 001\n");
@@ -1915,32 +1876,20 @@ void * remuxVideoAudio(void *args)
 				fmp4_file_lable.traf_audio_offset.trafBox_offset = (out_mode == SAVE_IN_FILE)?\
 																 ftell(file_handle) + buf_offset:\
 																 out_info->buf_mode.w_offset + buf_offset;	
-				if(buf_cpy(moof_mdat_buf , fmp4BOX.traf_audio->trafBox ,\
-						sizeof(traf_box), buf_offset,moof_mdat_buf_size)<0)
-				{
-					FMP4_ERROR_LOG("buf_cpy  failed!\n");
-					pthread_mutex_unlock(&buf_remux_audio.mut);
-					pthread_exit(0);
-				}
-						
+				buf_cpy(moof_mdat_buf , fmp4BOX.traf_audio->trafBox ,\
+						sizeof(traf_box), buf_offset,moof_mdat_buf_size);
 				buf_offset += sizeof(traf_box);
 
 				//tfhd
 				//更新 base_data_offset ,赋值为当前所属 moof box 在文件中的偏移
 				FMP4_DEBUG_LOG("audio fmp4_file_lable.moofBox_offset = %d\n",fmp4_file_lable.moofBox_offset);
 				fmp4BOX.traf_audio->tfhdBox->base_data_offset = t_htonll((unsigned long long)fmp4_file_lable.moofBox_offset);
-				
+				fmp4BOX.traf_audio->tfhdBox->default_sample_duration = t_htonl(AUDIO_TIME_SCALE/buf_remux_audio.frame_rate);
 				fmp4_file_lable.traf_audio_offset.tfhdBox_offset = (out_mode == SAVE_IN_FILE)?\
 																	 ftell(file_handle) + buf_offset:\
 																	 out_info->buf_mode.w_offset + buf_offset;
-				if(buf_cpy(moof_mdat_buf , fmp4BOX.traf_audio->tfhdBox ,\
-					sizeof(tfhd_box), buf_offset,moof_mdat_buf_size)<0)
-				{
-					FMP4_ERROR_LOG("buf_cpy  failed!\n");
-					pthread_mutex_unlock(&buf_remux_audio.mut);
-					pthread_exit(0);
-				}
-					
+				buf_cpy(moof_mdat_buf , fmp4BOX.traf_audio->tfhdBox ,\
+					sizeof(tfhd_box), buf_offset,moof_mdat_buf_size);
 				buf_offset += sizeof(tfhd_box);
 
 				//---tfdt--------------------------------------------------------------------------------------------------
@@ -1949,14 +1898,8 @@ void * remuxVideoAudio(void *args)
 																	 out_info->buf_mode.w_offset + buf_offset;
 				//修正 tfdt ---> Base media decode time 参数
 				fmp4BOX.traf_audio->tfdtBox->baseMediaDecodeTime = t_htonl(tfra_audio_time);
-				if(buf_cpy(moof_mdat_buf , fmp4BOX.traf_audio->tfdtBox ,\
-					sizeof(tfdt_box), buf_offset,moof_mdat_buf_size)<0)
-				{
-					FMP4_ERROR_LOG("buf_cpy  failed!\n");
-					pthread_mutex_unlock(&buf_remux_audio.mut);
-					pthread_exit(0);
-				}
-					
+				buf_cpy(moof_mdat_buf , fmp4BOX.traf_audio->tfdtBox ,\
+					sizeof(tfdt_box), buf_offset,moof_mdat_buf_size);
 				buf_offset += sizeof(tfdt_box);
 
 				//---trun--------------------------------------------------------------------------------------------------
@@ -1977,28 +1920,16 @@ void * remuxVideoAudio(void *args)
 				//fmp4BOX.traf_video->trunBox->first_sample_flags = ;//暂时不赋值，已经在初始化做了
 				
 																	 
-				if(buf_cpy(moof_mdat_buf , fmp4BOX.traf_audio->trunBox ,\
-					sizeof(trun_box), buf_offset,moof_mdat_buf_size)<0)
-				{
-					FMP4_ERROR_LOG("buf_cpy  failed!\n");
-					pthread_mutex_unlock(&buf_remux_audio.mut);
-					pthread_exit(0);
-				}
-					
+				buf_cpy(moof_mdat_buf , fmp4BOX.traf_audio->trunBox ,\
+					sizeof(trun_box), buf_offset,moof_mdat_buf_size);
 				buf_offset += sizeof(trun_box);
 				
 				//trun--->samples info
 				for(i = 0;i < buf_remux_audio.write_index;i++)
 				{
 					tfra_audio_time +=  t_ntohl(buf_remux_audio.sample_info[i].trun_sample.sample_duration); 
-					if(buf_cpy(moof_mdat_buf , (unsigned char*)&buf_remux_audio.sample_info[i].trun_sample ,\
-						sizeof(trun_A_sample_t), buf_offset,moof_mdat_buf_size)<0)
-					{
-						FMP4_ERROR_LOG("buf_cpy  failed!\n");
-						pthread_mutex_unlock(&buf_remux_audio.mut);
-						pthread_exit(0);
-					}
-						
+					buf_cpy(moof_mdat_buf , (unsigned char*)&buf_remux_audio.sample_info[i].trun_sample ,\
+						sizeof(trun_A_sample_t), buf_offset,moof_mdat_buf_size);
 					buf_offset += sizeof(trun_A_sample_t);
 				}
 				pthread_mutex_unlock(&buf_remux_audio.mut);
@@ -2013,17 +1944,12 @@ void * remuxVideoAudio(void *args)
 				fmp4BOX.mdatBox->header.size = t_htonl(0);
 			}
 			*/
-			FMP4_DEBUG_LOG("into debug 20190624_01\n");
+
 			fmp4_file_lable.mdatBox_offset = (out_mode == SAVE_IN_FILE)?\
 											 ftell(file_handle) + buf_offset:\
 											 out_info->buf_mode.w_offset + buf_offset;
-			if(buf_cpy(moof_mdat_buf , fmp4BOX.mdatBox,\
-				sizeof(mdat_box), buf_offset,moof_mdat_buf_size)<0)
-			{
-				FMP4_ERROR_LOG("buf_cpy  failed!\n");
-				pthread_exit(0);
-			}
-				
+			buf_cpy(moof_mdat_buf , fmp4BOX.mdatBox,\
+				sizeof(mdat_box), buf_offset,moof_mdat_buf_size);
 			buf_offset += sizeof(mdat_box);
 
 			//视频 samples data部分
@@ -2038,25 +1964,17 @@ void * remuxVideoAudio(void *args)
 					pthread_mutex_unlock(&buf_remux_video.mut);
 					pthread_exit(0);
 				}
-				FMP4_DEBUG_LOG("samp_cpy_len = %d\n",samp_cpy_len);   //// BUG 定位处
-				if(buf_cpy(moof_mdat_buf , buf_remux_video.remux_video_buf,\
-						samp_cpy_len, buf_offset,moof_mdat_buf_size) < 0)
-				{
-					FMP4_ERROR_LOG("buf_cpy  failed!\n");
-					pthread_mutex_unlock(&buf_remux_video.mut);
-					pthread_exit(0);
-				}
-						
+				//FMP4_DEBUG_LOG("samp_cpy_len = %d\n",samp_cpy_len);   //// BUG 定位处
+				buf_cpy(moof_mdat_buf , buf_remux_video.remux_video_buf,\
+						samp_cpy_len, buf_offset,moof_mdat_buf_size);
 				buf_offset += samp_cpy_len;
-				FMP4_DEBUG_LOG("samp_cpy_len001 = %d\n",samp_cpy_len);   //// BUG 定位处
+				//FMP4_DEBUG_LOG("samp_cpy_len001 = %d\n",samp_cpy_len);   //// BUG 定位处
 				pthread_mutex_unlock(&buf_remux_video.mut);
 			}
 			
 			//音频 samples data  部分
 			if(have_audio)
 			{
-				FMP4_DEBUG_LOG("=========into debug 20190624_2058\n");
-				
 				pthread_mutex_lock(&buf_remux_audio.mut);
 				//mdat--->samples data
 				unsigned int samp_cpy_len = buf_remux_audio.write_pos-buf_remux_audio.remux_audio_buf;
@@ -2067,40 +1985,28 @@ void * remuxVideoAudio(void *args)
 					pthread_exit(0);
 				}
 				//FMP4_DEBUG_LOG("samp_cpy_len = %d\n",samp_cpy_len);   
-				print_char_array((unsigned char*)"Audio mdat samples:",(unsigned char*)buf_remux_audio.remux_audio_buf,16); //debug
-				if(buf_cpy(moof_mdat_buf , buf_remux_audio.remux_audio_buf,\
-						samp_cpy_len, buf_offset,moof_mdat_buf_size)<0)
-				{
-					FMP4_ERROR_LOG("buf_cpy  failed!\n");
-					FMP4_ERROR_LOG("moof_mdat_buf_size(%d) samp_cpy_len(%d) buf_offset(%d)\n",moof_mdat_buf_size,samp_cpy_len,buf_offset);
-					pthread_exit(0);
-				}
-						
+				print_char_array("Audio mdat samples:",buf_remux_audio.remux_audio_buf,16); //debug
+				buf_cpy(moof_mdat_buf , buf_remux_audio.remux_audio_buf,\
+						samp_cpy_len, buf_offset,moof_mdat_buf_size);
 				buf_offset += samp_cpy_len;
 				
 				
 				pthread_mutex_unlock(&buf_remux_audio.mut);
 			}
-
-			FMP4_DEBUG_LOG("=========into debug 20190624_2083\n");
-
+		
 			//长度信息修改后写入文件后需要归位,下一次用时得继续保持刚初始化的状态
 			fmp4BOX.moofBox->header.size = t_htonl(sizeof(moof_box));
 			fmp4BOX.mfhdBox->header.size = t_htonl(sizeof(mfhd_box));
-
-			
 			fmp4BOX.traf_video->trafBox->header.size = t_htonl(sizeof(traf_box));
 			fmp4BOX.traf_video->trunBox->header.size = t_htonl(sizeof(trun_box));
 
-			#if HAVE_AUDIO			
+			#if HAVE_AUDIO
 			fmp4BOX.traf_audio->trafBox->header.size = t_htonl(sizeof(traf_box));
 			fmp4BOX.traf_audio->trunBox->header.size = t_htonl(sizeof(trun_box));
 			#endif
-			
+
 			fmp4BOX.mdatBox->header.size = t_htonl(sizeof(mdat_box));  //BUG 解决
 
-			FMP4_DEBUG_LOG("=========into debug 20190624_2092\n");
-			
 			/*======音视频缓存buf指针归位，buf需要循环重写。=======================================
 			该归位如果单独放在 remuxAudio/remuxVideo函数里边做会存在BUG,
 			假设，AUDIO满足写的帧数，写入了新的moof+mdat box，但此时 video 帧并没有满一个 framerate数，
@@ -2130,7 +2036,7 @@ void * remuxVideoAudio(void *args)
 				pthread_mutex_unlock(&buf_remux_video.mut); 
 			#endif
 			///*======end====================================================================
-			FMP4_DEBUG_LOG("=========into debug 20190624_2123\n");
+			
 			//通知主线程，缓冲区复位，缓冲新数据,主线程循环下一轮工作
 			remux_v_can_write = 0;
 			remux_A_can_write = 0;
@@ -2142,8 +2048,8 @@ void * remuxVideoAudio(void *args)
 				接下来再将 moof + mdat数据统一写入文件
 			*/
 			FMP4_DEBUG_LOG("moof_mdat_buf address (%p)",moof_mdat_buf);
-		//	moof_box *moof_tmp = (moof_box*)moof_mdat_buf; 
-		//	FMP4_DEBUG_LOG("moof_tmp->header.type = %4s\n",moof_tmp->header.type);
+			moof_box *moof_tmp = (moof_box*)moof_mdat_buf; 
+			FMP4_DEBUG_LOG("moof_tmp->header.type = %4s\n",moof_tmp->header.type);
 			//FMP4_DEBUG_LOG("debug 001 write size(%d)\n",buf_offset);
 
 			struct timeval front_time = {0};
@@ -2167,7 +2073,7 @@ void * remuxVideoAudio(void *args)
 			}
 			else  //保存到内存
 			{
-				//print_char_array((unsigned char*)"ftyp15",out_info->buf_mode.buf_start,10);
+				//print_char_array("ftyp15",out_info->buf_mode.buf_start,10);
 				if(out_info->buf_mode.w_offset + buf_offset > out_info->buf_mode.buf_size)
 				{
 						FMP4_ERROR_LOG("over write! fmp4 out put file memory is pool!\n");
@@ -2176,7 +2082,7 @@ void * remuxVideoAudio(void *args)
 				memcpy(out_info->buf_mode.buf_start + out_info->buf_mode.w_offset,moof_mdat_buf,buf_offset);
 				out_info->buf_mode.w_offset += buf_offset;
 				FMP4_DEBUG_LOG("out_info.buf_mode.w_offset = %d\n",out_info->buf_mode.w_offset);
-				//print_char_array((unsigned char*)"ftyp16",out_info->buf_mode.buf_start,10);
+				//print_char_array("ftyp16",out_info->buf_mode.buf_start,10);
 			}
 			
 			memset(moof_mdat_buf,0,moof_mdat_buf_size);
@@ -2198,8 +2104,13 @@ void * remuxVideoAudio(void *args)
 	//最后写入一个结束box     		mfra box及其子box 
 	mfra_box *mfraBox = NULL; 
 	unsigned int mfraBox_len = 0;
-	//unsigned int mfre_ret = 
-	mfra_box_rebuid(&mfraBox,&mfraBox_len);
+	unsigned int mfre_ret = 0;
+	mfre_ret = mfra_box_rebuid(&mfraBox,&mfraBox_len);
+	if(mfre_ret < 0)
+	{
+		FMP4_ERROR_LOG("mfra_box_rebuid error!\n");
+		pthread_exit(0);
+	}
 	
 	fmp4_file_lable.mfraBox_offset =  (out_mode == SAVE_IN_FILE)?\
 									  ftell(file_handle):\
@@ -2218,7 +2129,7 @@ void * remuxVideoAudio(void *args)
 	}
 	else  //保存到内存
 	{
-		print_char_array((unsigned char*)"mfra",(unsigned char*)mfraBox,10);
+		print_char_array("mfra",(char*)mfraBox,10);
 		if(out_info->buf_mode.w_offset + mfraBox_len > out_info->buf_mode.buf_size)
 		{
 				FMP4_ERROR_LOG("over write! fmp4 out put file memory is pool! w_offset(%d) + mfraBox_len(%d) > buf_size(%d)\n",\
@@ -2256,7 +2167,7 @@ void * remuxVideoAudio(void *args)
 		}
 		FMP4_DEBUG_LOG("debug open file success!\n");
 
-		print_char_array((unsigned char*)"ftyp17",out_info->buf_mode.buf_start,40);
+		print_char_array("ftyp17",out_info->buf_mode.buf_start,40);
 		int debug_ret = fwrite(out_info->buf_mode.buf_start,1,out_info->buf_mode.w_offset,debug_file);
 		if(debug_ret < 0)
 		{
@@ -2297,7 +2208,7 @@ int remux_init(unsigned int Vframe_rate,unsigned int Aframe_rate)
     pthread_cond_init(&remux_write_last_ok, NULL);
 	
 	//===初始化 remux video部分的buf========================================
-	buf_remux_video.remux_video_buf = (unsigned char*)malloc(REMUX_VIDEO_BUF_SIZE);
+	buf_remux_video.remux_video_buf = (char *)malloc(REMUX_VIDEO_BUF_SIZE);
 	if(NULL == buf_remux_video.remux_video_buf)
 	{
 		FMP4_ERROR_LOG("malloc failed !\n");
@@ -2321,6 +2232,7 @@ int remux_init(unsigned int Vframe_rate,unsigned int Aframe_rate)
 	FMP4_DEBUG_LOG("video frame rate(%d) ",buf_remux_video.frame_rate);
 
 	//===初始化 remux audio 部分的buf=======================================
+#if HAVE_AUDIO
 	buf_remux_audio.remux_audio_buf = (char*)malloc(REMUX_AUDIO_BUF_SIZE);
 	if(NULL == buf_remux_audio.remux_audio_buf)
 	{
@@ -2342,7 +2254,7 @@ int remux_init(unsigned int Vframe_rate,unsigned int Aframe_rate)
 	
 
 	FMP4_DEBUG_LOG("audio frame rate(%d) ",buf_remux_audio.frame_rate);
-	
+#endif
 
 	//===启动音视频混合程序===================================================
 	pthread_t tid;
@@ -2388,7 +2300,6 @@ int remux_exit(void)
 		last_data_put_ok = 0; //复位，重入才不会出错
 	#endif
 	//===释放=======================================	
-	FMP4_DEBUG_LOG("=========into remuX_exit pos 001\n");
 	pthread_mutex_destroy(&buf_remux_video.mut);  
    	pthread_mutex_destroy(&buf_remux_audio.mut);
 	if(buf_remux_video.remux_video_buf) {free(buf_remux_video.remux_video_buf);buf_remux_video.remux_video_buf = NULL;}	
@@ -2396,7 +2307,6 @@ int remux_exit(void)
 
 	pthread_mutex_destroy(&remux_write_last_mut);
 	pthread_cond_destroy(&remux_write_last_ok);
-	FMP4_DEBUG_LOG("=========into remuX_exit pos 002\n");
 	
 	#if USE_44100_AAC_FILE
 	if(AAC_44100_fd > 0) close(AAC_44100_fd); 
@@ -2412,8 +2322,6 @@ int remux_exit(void)
 	if(fmp4BOX.mdatBox) {free(fmp4BOX.mdatBox);fmp4BOX.mdatBox = NULL;}
 	if(fmp4BOX.mfraBox) {free(fmp4BOX.mfraBox);fmp4BOX.mfraBox = NULL;}
 	if(fmp4BOX.mvhdBox) {free(fmp4BOX.mvhdBox);fmp4BOX.mvhdBox = NULL;}
-	FMP4_DEBUG_LOG("=========into remuX_exit pos 003\n");
-	
 	if(fmp4BOX.trak_video->trakBox) {free(fmp4BOX.trak_video->trakBox);fmp4BOX.trak_video->trakBox = NULL;}
 	if(fmp4BOX.trak_video->tkhdBox) {free(fmp4BOX.trak_video->tkhdBox);fmp4BOX.trak_video->tkhdBox = NULL;}
 	if(fmp4BOX.trak_video->mdiaBox) {free(fmp4BOX.trak_video->mdiaBox);fmp4BOX.trak_video->mdiaBox = NULL;}
@@ -2429,9 +2337,7 @@ int remux_exit(void)
 	if(fmp4BOX.trak_video->stscBox) {free(fmp4BOX.trak_video->stscBox);fmp4BOX.trak_video->stscBox = NULL;}
 	if(fmp4BOX.trak_video->stszBox) {free(fmp4BOX.trak_video->stszBox);fmp4BOX.trak_video->stszBox = NULL;}
 	if(fmp4BOX.trak_video->stcoBox) {free(fmp4BOX.trak_video->stcoBox);fmp4BOX.trak_video->stcoBox = NULL;}
-
-	FMP4_DEBUG_LOG("=========into remuX_exit pos 004\n");
-	#if HAVE_AUDIO
+#if HAVE_AUDIO
 	if(fmp4BOX.trak_audio->trakBox) {free(fmp4BOX.trak_audio->trakBox);fmp4BOX.trak_audio->trakBox = NULL;}
 	if(fmp4BOX.trak_audio->tkhdBox) {free(fmp4BOX.trak_audio->tkhdBox);fmp4BOX.trak_audio->tkhdBox = NULL;}
 	if(fmp4BOX.trak_audio->mdiaBox) {free(fmp4BOX.trak_audio->mdiaBox);fmp4BOX.trak_audio->mdiaBox = NULL;}
@@ -2447,14 +2353,13 @@ int remux_exit(void)
 	if(fmp4BOX.trak_audio->stscBox) {free(fmp4BOX.trak_audio->stscBox);fmp4BOX.trak_audio->stscBox = NULL;}
 	if(fmp4BOX.trak_audio->stszBox) {free(fmp4BOX.trak_audio->stszBox);fmp4BOX.trak_audio->stszBox = NULL;}
 	if(fmp4BOX.trak_audio->stcoBox) {free(fmp4BOX.trak_audio->stcoBox);fmp4BOX.trak_audio->stcoBox = NULL;}
-	#endif
-	
-	FMP4_DEBUG_LOG("=========into remuX_exit pos 005\n");
+#endif
 
 	if(fmp4BOX.mvexBox) {free(fmp4BOX.mvexBox);fmp4BOX.mvexBox = NULL;}
 	if(fmp4BOX.trex_video) {free(fmp4BOX.trex_video);fmp4BOX.trex_video = NULL;}
+#if HAVE_AUDIO
 	if(fmp4BOX.trex_audio) {free(fmp4BOX.trex_audio);fmp4BOX.trex_audio = NULL;}
-	
+#endif	
 	if(fmp4BOX.moofBox) {free(fmp4BOX.moofBox);fmp4BOX.moofBox = NULL;}
 	if(fmp4BOX.mfhdBox) {free(fmp4BOX.mfhdBox);fmp4BOX.mfhdBox = NULL;}
 
@@ -2462,26 +2367,21 @@ int remux_exit(void)
 	if(fmp4BOX.traf_video->tfhdBox) {free(fmp4BOX.traf_video->tfhdBox);fmp4BOX.traf_video->tfhdBox = NULL;}
 	if(fmp4BOX.traf_video->tfdtBox) {free(fmp4BOX.traf_video->tfdtBox);fmp4BOX.traf_video->tfdtBox = NULL;}
 	if(fmp4BOX.traf_video->trunBox) {free(fmp4BOX.traf_video->trunBox);fmp4BOX.traf_video->trunBox = NULL;}
-
-	#if HAVE_AUDIO
+#if HAVE_AUDIO	
 	if(fmp4BOX.traf_audio->trafBox) {free(fmp4BOX.traf_audio->trafBox);fmp4BOX.traf_audio->trafBox = NULL;}
 	if(fmp4BOX.traf_audio->tfhdBox) {free(fmp4BOX.traf_audio->tfhdBox);fmp4BOX.traf_audio->tfhdBox = NULL;}	
 	if(fmp4BOX.traf_audio->tfdtBox) {free(fmp4BOX.traf_audio->tfdtBox);fmp4BOX.traf_audio->tfdtBox = NULL;}	
 	if(fmp4BOX.traf_audio->trunBox) {free(fmp4BOX.traf_audio->trunBox);fmp4BOX.traf_audio->trunBox = NULL;}	
-	#endif
-	FMP4_DEBUG_LOG("=========into remuX_exit pos 006\n");
-	
+#endif
+
 	if(fmp4BOX.mdatBox) {free(fmp4BOX.mdatBox);fmp4BOX.mdatBox = NULL;}
 	if(fmp4BOX.mfraBox) {free(fmp4BOX.mfraBox);fmp4BOX.mfraBox = NULL;}
 
 	if(fmp4BOX.tfra_video->tfraBox) {free(fmp4BOX.tfra_video->tfraBox);fmp4BOX.tfra_video->tfraBox = NULL;}
-
-	#if HAVE_AUDIO
+#if HAVE_AUDIO
 	if(fmp4BOX.tfra_audio->tfraBox) {free(fmp4BOX.tfra_audio->tfraBox);fmp4BOX.tfra_audio->tfraBox = NULL;}
-	#endif
-	
+#endif
 	if(fmp4BOX.mfroBox) {free(fmp4BOX.mfroBox);fmp4BOX.mfroBox = NULL;}
-	FMP4_DEBUG_LOG("=========into remuX_exit pos 007\n");
 
 
 	Sequence_number = 0;
@@ -2589,23 +2489,6 @@ void fmp4_global_variable_reset(void)
 	
 	
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

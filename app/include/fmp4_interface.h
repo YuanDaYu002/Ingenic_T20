@@ -9,7 +9,7 @@
 //"内存存储模式"描述信息
 typedef struct _buf_mode_t
 {
-	unsigned char	*buf_start; //最终存储内存的起始地址
+	char	*buf_start; //最终存储内存的起始地址
 	unsigned int 	buf_size;
 	unsigned int 	w_offset;	//写指针的偏移量，最终值就是实际文件的长度
 }buf_mode_t;
@@ -88,6 +88,7 @@ int Fmp4_encode_exit(void);
 
 
 #endif
+
 
 
 

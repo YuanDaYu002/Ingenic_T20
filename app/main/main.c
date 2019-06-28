@@ -104,8 +104,43 @@ int save_h264_file_from_cirbuf(E_IMAGE_SIZE image_size,int time_len,char*file_na
 			continue;
 		
 		/*---#-写入到文件-----------------------------------------------------------*/
-		ret = write(fd,data,info.frmLength);
-		if(ret != info.frmLength)
+		#if 1
+		int skip_len = 0;
+		FRAME_HDR *header = (FRAME_HDR *)data;
+            if (header->sync_code[0] != 0 || header->sync_code[1] != 0|| header->sync_code[2] != 1) 
+           {
+                printf("------BUG------\n");
+                continue;
+            }
+
+            if (header->type == 0xF8)  //0xF8-视频关键帧
+			{
+                skip_len = sizeof (FRAME_HDR) + sizeof (IFRAME_INFO);
+            }
+            else if (header->type == 0xF9) //0xF9-视频非关键帧 
+			{
+                skip_len = sizeof (FRAME_HDR) + sizeof (PFRAME_INFO);
+            }
+            else if (header->type == 0xFA)//0xFA-音频帧
+			{
+                 skip_len = sizeof (FRAME_HDR) + sizeof (AFRAME_INFO);
+            }
+            else 
+			{
+                printf("------BUG------\n");
+                continue;
+            }
+			
+		
+		#endif
+
+		 if (header->type == 0xF8)  //0xF8-视频关键帧
+		 {
+		 	char* IDR = (char*)data + skip_len;
+			DEBUG_LOG("IDR[]= %x %x %x %x %x\n",IDR[0],IDR[1],IDR[2],IDR[3],IDR[4]);
+		 }
+		ret = write(fd,data + skip_len,info.frmLength - skip_len);
+		if(ret != info.frmLength- skip_len)
 		{
 			ERROR_LOG("write file(%s) failed!\n",file_name);
 			goto ERR;
@@ -171,12 +206,12 @@ int main(int argc,char*argv[])
 	if(ret < 0) goto ERR;
 	
 	/*---#从循环缓存池获取编码帧(H264 + AAC/PCM)，直接保存到文件-----------------------------------*/
-	#if 1
+	#if 0
 //	ret = save_h264_file_from_cirbuf(IMAGE_SIZE_640x360,8,"/tmp/cirbuffer_chn_1.h264");	
 //	if(ret < 0) goto ERR;
 	
-//	ret = save_h264_file_from_cirbuf(IMAGE_SIZE_1920x1080,8,"/tmp/cirbuffer_chn_0.h264");
-//	if(ret < 0) goto ERR;
+	ret = save_h264_file_from_cirbuf(IMAGE_SIZE_1920x1080,8,"/tmp/cirbuffer_chn_0.h264");
+	if(ret < 0) goto ERR;
 	#endif
 
 	//播放g711文件 test
@@ -218,56 +253,56 @@ int main(int argc,char*argv[])
 
 	/*---#测试fmp4文件录制，该部分录制的文件格式正确，但態解码出来视频，
 	因为牵涉到HLS协议不兼容 MP4 + M3U8 ，后续再调试------------------------------*/
-//	fmp4_out_info_t fmp4_info = {0};
-//	#if 0
-//	fmp4_info.file_mode.file_name = "/tmp/t20_fmp4_1920x1080_.mp4";
-//	#else
-//	fmp4_info.buf_mode.buf_start = (unsigned char*)malloc(1024*1024*5);
-//	if(NULL == fmp4_info.buf_mode.buf_start)
-//	{
-//		ERROR_LOG("malloc failed!\n");
-//		return -1;
-//	}
-//	memset(fmp4_info.buf_mode.buf_start,0,1024*1024*5);
-//	fmp4_info.buf_mode.w_offset = 0;
-//	fmp4_info.buf_mode.buf_size = 1024*1024*5;
-//	
-//	#endif
-//	fmp4_info.recode_time = 8; //录制的 s 数
-//	if(fmp4_record(&fmp4_info) < 0)
-//	{
-//		ERROR_LOG("fmp4 record failed!\n");
-//		
-//	}
+	fmp4_out_info_t fmp4_info = {0};
+	#if 0
+	fmp4_info.file_mode.file_name = "/tmp/t20_fmp4_1920x1080_.mp4";
+	#else
+	fmp4_info.buf_mode.buf_start = (char*)malloc(1024*1024*5);
+	if(NULL == fmp4_info.buf_mode.buf_start)
+	{
+		ERROR_LOG("malloc failed!\n");
+		return -1;
+	}
+	memset(fmp4_info.buf_mode.buf_start,0,1024*1024*5);
+	fmp4_info.buf_mode.w_offset = 0;
+	fmp4_info.buf_mode.buf_size = 1024*1024*5;
+	
+	#endif
+	fmp4_info.recode_time = 8; //录制的 s 数
+	if(fmp4_record(&fmp4_info) < 0)
+	{
+		ERROR_LOG("fmp4 record failed!\n");
+		
+	}
 	/*---#------------------------------------------------------------*/
 
 
-	/*---#录6s预录视频------------------------------------------------------------*/
-	void* out_buf = NULL;
-    int out_len = 0;
-	if(ts_record(&out_buf,&out_len,15) < 0)
-	{
-		ERROR_LOG("ts_record failed!\n");
-		return -1;
-	}
+	/*---#录TS视频------------------------------------------------------------*/
+//	void* out_buf = NULL;
+//    int out_len = 0;
+//	if(ts_record(&out_buf,&out_len,15) < 0)
+//	{
+//		ERROR_LOG("ts_record failed!\n");
+//		return -1;
+//	}
 
-	int fd = open("/tmp/T20_ts_main.ts",O_RDWR|O_CREAT|O_TRUNC,0755);
-	if(fd < 0)
-	{
-		ERROR_LOG("open /tmp/T20_ts_main.ts failed!\n");
-		return -1;
-	}
+//	int fd = open("/tmp/T20_ts_main.ts",O_RDWR|O_CREAT|O_TRUNC,0755);
+//	if(fd < 0)
+//	{
+//		ERROR_LOG("open /tmp/T20_ts_main.ts failed!\n");
+//		return -1;
+//	}
 
-	ret = write(fd,out_buf,out_len);
-	if(ret != out_len)
-	{
-		ERROR_LOG("write file failed!\n");
-		close(fd);
-		return -1;
-	}
+//	ret = write(fd,out_buf,out_len);
+//	if(ret != out_len)
+//	{
+//		ERROR_LOG("write file failed!\n");
+//		close(fd);
+//		return -1;
+//	}
 
-	close(fd);
-	free(out_buf);
+//	close(fd);
+//	free(out_buf);
 	/*---#------------------------------------------------------------*/
 	
 			
@@ -291,6 +326,13 @@ ERR:
 	
 	return 0;
 }
+
+
+
+
+
+
+
 
 
 

@@ -10,7 +10,7 @@ extern "C"
 #define VIDEO_TRACK 1   //视频轨道
 #define AUDIO_TRACK 2   //音频轨道
 #define HAVE_VIDEO 1    //视频轨道总控开关
-#define HAVE_AUDIO 0	//音频轨道总控开关
+#define HAVE_AUDIO 1	//音频轨道总控开关
 
 
 #define 	NALU_SPS  0
@@ -53,13 +53,14 @@ typedef struct _PPS_SPS_info_t
 typedef struct _BoxHeader_t
 {
 	unsigned int size;	//BOX size
-	unsigned char type[4];	//BOX type
+	//unsigned char type[4];//BOX type
+	char type[4];	//BOX type
 }BoxHeader_t;
 
 typedef struct _FullBoxHeader_t
 {
 	unsigned int size;	//BOX size
-	unsigned char type[4];	//BOX type
+	char 	 type[4];	//BOX type
 	char     version;	//BOX 版本，0或1，一般为0 ，该套代码只支持 0
 	char 	flags[3];	//保留位
 	
@@ -922,7 +923,7 @@ mp4a_box* mp4a_box_init(void);
 //avcc_box_info_t *	avcc_box_init(unsigned char* naluData, int naluSize);
 avcc_box_info_t *	avcc_box_init(void *IDR_frame,unsigned int IDR_len);
 int FrameType(unsigned char* naluData);
-void print_char_array(unsigned char* box_name,unsigned char*start,unsigned int length);
+void print_char_array(char* box_name,char*start,unsigned int length);
 mfra_box* mfra_box_init(void);
 tfra_video_t * tfra_video_init(void);
 tfra_audio_t * tfra_audio_init(void);
@@ -1041,6 +1042,9 @@ typedef struct MetaBox_t
 #endif
 
 #endif
+
+
+
 
 
 

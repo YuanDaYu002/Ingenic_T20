@@ -26,10 +26,10 @@ int switch_small_BigEndian(int num)
 }
 
 //用来以十六进制字节流打印box,用于调试
-void print_char_array(unsigned char* box_name,unsigned char*start,unsigned int length)
+void print_char_array(char* box_name,char*start,unsigned int length)
 {
 	#ifdef FMP4_DEBUG
-		unsigned char*p = start;
+		unsigned char*p = (unsigned char*)start;
 		unsigned int i = 0;
 		printf("\n  %s[]: ",box_name);
 		for(i=0;i<length;i++)
@@ -51,12 +51,12 @@ ftyp_box * ftyp_box_init(void)
 		
 	 unsigned char Array[] = {
             0x69, 0x73, 0x6F, 0x6D, // major_brand: isom     isom  MP4  Base Media v1[IS0 14496-12:2003]ISO YES video/mp4
-            0x00, 0x00, 0x00, 0x01,	//0x00, 0x00, 0x02, 0x00	//0x0, 0x0, 0x0, 0x1, 	// minor_version: 0x01 (最低兼容性的版本)
+            0x00, 0x00, 0x02, 0x00,		//0x0, 0x0, 0x0, 0x1, 	// minor_version: 0x01 (最低兼容性的版本)
             0x69, 0x73, 0x6F, 0x6D, // isom 
-          //  0x69, 0x73, 0x6F, 0x32,	// iso2
+            0x69, 0x73, 0x6F, 0x32,	// iso2
             0x61, 0x76, 0x63, 0x31, 	// avc1
-            //0X69, 0x73, 0x6F, 0x36,	// iso6
-            //0X6D, 0x70, 0x34, 0x31		// mp41	
+            0X69, 0x73, 0x6F, 0x36,	// iso6
+            0X6D, 0x70, 0x34, 0x31		// mp41	
         	};
 
 	int box_size = sizeof(Array)+sizeof(BoxHeader_t);
@@ -67,7 +67,7 @@ ftyp_box * ftyp_box_init(void)
 	
 	memset(ftyp_item,0,box_size);
 	ftyp_item->header.size = t_htonl(box_size);
-	strncpy((char*)&ftyp_item->header.type,"ftyp",4);
+	strncpy(ftyp_item->header.type,"ftyp",4);
 	
 	memcpy(((char*)ftyp_item) + sizeof(BoxHeader_t),Array,sizeof(Array));
 
@@ -83,7 +83,7 @@ moov_box* moov_box_init(unsigned int box_length)
 		return NULL;
 	memset(moov_item,0,box_length);
 	moov_item->header.size = t_htonl(box_length);//上层调用增加child box后再及时修正
-	strncpy((char*)&moov_item->header.type,"moov",4);
+	strncpy(moov_item->header.type,"moov",4);
 
 
 	return moov_item;
@@ -98,7 +98,7 @@ moof_box* moof_box_init(unsigned int box_length)
 		return NULL;
 	memset(moof_item,0,box_length);
 	moof_item->header.size = t_htonl(box_length);//上层调用增加child box后再及时修正
-	strncpy((char*)&moof_item->header.type,"moof",4);
+	strncpy(moof_item->header.type,"moof",4);
 
 	return moof_item;
 }
@@ -111,7 +111,7 @@ mdat_box* mdat_box_init(unsigned int box_length)
 		return NULL;
 	memset(mdat_item,0,box_length);
 	mdat_item->header.size = t_htonl(box_length);//上层调用增加child box后再及时修正
-	strncpy((char*)&mdat_item->header.type,"mdat",4);
+	strncpy(mdat_item->header.type,"mdat",4);
 
 	return mdat_item;
 }
@@ -124,7 +124,7 @@ mfra_box* mfra_box_init(void)
 		return NULL;
 	memset(mfra_item,0,sizeof(mfra_box));
 	mfra_item->header.size = t_htonl(sizeof(mfra_box));//上层调用增加child box后再及时修正
-	strncpy((char*)&mfra_item->header.type,"mfra",4);
+	strncpy(mfra_item->header.type,"mfra",4);
 
 	return mfra_item;
 }
@@ -148,7 +148,7 @@ mvhd_box* mvhd_box_init(unsigned int timescale,unsigned int duration)
 	memset(mvhd_item,0,sizeof(mvhd_box));
 
 	mvhd_item->header.size = t_htonl(sizeof(mvhd_box));
-	strncpy((char*)&mvhd_item->header.type,"mvhd",4);
+	strncpy(mvhd_item->header.type,"mvhd",4);
 	mvhd_item->header.version = 0;
 
 	/*struct timeval buf;
@@ -209,7 +209,7 @@ trak_box* trak_box_init(unsigned int box_length)
 	memset(track_item,0,box_length);
 
 	track_item->header.size = t_htonl(box_length);
-	strncpy((char*)&track_item->header.type,"trak",4);
+	strncpy(track_item->header.type,"trak",4);
 	
 	return track_item;
 }
@@ -226,7 +226,7 @@ mvex_box*	mvex_box_init(unsigned int box_length)
 	
 	memset(mvex_item,0,box_length);
 	mvex_item->header.size  = t_htonl(box_length);	
-	strncpy((char*)&mvex_item->header.type,"mvex",4);
+	strncpy(mvex_item->header.type,"mvex",4);
 //	mvex_item->header.version = 0;
 
 	return mvex_item;
@@ -241,7 +241,7 @@ mfhd_box* mfhd_box_init(void)
 		return NULL;
 	memset(mfhd_item,0,sizeof(mfhd_box));
 	mfhd_item->header.size  = t_htonl(sizeof(mfhd_box));
-	strncpy((char*)&mfhd_item->header.type,"mfhd",4);
+	strncpy(mfhd_item->header.type,"mfhd",4);
 	mfhd_item->header.version = 0;
 
 	return mfhd_item;
@@ -255,7 +255,7 @@ traf_box*	traf_box_init(unsigned int box_length)
 		return NULL;
 	memset(traf_item,0,box_length);
 	traf_item->header.size  = t_htonl(box_length);
-	strncpy((char*)&traf_item->header.type,"traf",4);
+	strncpy(traf_item->header.type,"traf",4);
 
 
 	return traf_item;
@@ -273,7 +273,7 @@ tfra_box * tfra_box_init(void)
 	memset(tfra_item,0,sizeof(tfra_box));
 	
 	tfra_item->header.size = t_htonl(sizeof(tfra_box));
-	strncpy((char*)&tfra_item->header.type,"tfra",4);
+	strncpy(tfra_item->header.type,"tfra",4);
 
 	//memset 已经搞定，不做重复操作
 	//tfra_item->length_size_of_traf_num = {0};
@@ -323,7 +323,7 @@ mfro_box * mfro_box_init(void)
 	memset(mfro_item,0,sizeof(mfro_box));
 	
 	mfro_item->header.size = t_htonl(sizeof(mfro_box));
-	strncpy((char*)&mfro_item->header.type,"mfro",4);
+	strncpy(mfro_item->header.type,"mfro",4);
 
 	mfro_item->size = t_htonl(sizeof(mfro_box));//最终要和mfra的大小一样。这里只初始化为自身大小
 
@@ -343,7 +343,7 @@ tkhd_box* tkhd_box_init(unsigned int trackId,unsigned int duration,unsigned shor
 		return NULL;
 	}
 	tkhd_item->header.size = t_htonl(sizeof(tkhd_box));
-	strncpy((char*)&tkhd_item->header.type,"tkhd",4);
+	strncpy(tkhd_item->header.type,"tkhd",4);
 	
 	//tkhd_item->header->version = 0;//放到下边的数组了
 	unsigned char TKHD[] = {
@@ -404,7 +404,7 @@ mdia_box* mdia_box_init(unsigned int box_length)
 	memset(mdia_item,0,box_length);
 
 	mdia_item->header.size = t_htonl(box_length);
-	strncpy((char*)&mdia_item->header.type ,"mdia",4);
+	strncpy(mdia_item->header.type ,"mdia",4);
 	
 	return mdia_item;
 	
@@ -424,7 +424,7 @@ trex_box*	trex_box_init(unsigned int trackId)
 
 	memset(trex_item,0,sizeof(trex_box));
 	trex_item->header.size = t_htonl(sizeof(trex_box));
-	strncpy((char*)&trex_item->header.type,"trex",4);
+	strncpy(trex_item->header.type,"trex",4);
 	FMP4_DEBUG_LOG("trackId = %d\n",trackId);
 	
 		 const unsigned char TREX[] = {
@@ -451,7 +451,7 @@ tfhd_box*	tfhd_box_init(unsigned int trackId)
 		return NULL;
 	memset(tfhd_item,0,sizeof(tfhd_box));
 	tfhd_item->header.size = t_htonl(sizeof(tfhd_box));
-	strncpy((char*)&tfhd_item->header.type,"tfhd",4);
+	strncpy(tfhd_item->header.type,"tfhd",4);
 	unsigned int flag = 0;
 
 	#if 1
@@ -531,7 +531,7 @@ tfdt_box*	tfdt_box_init(int baseMediaDecodeTime)
 	FMP4_DEBUG_LOG("tfdt_item malloc size(%d)\n",box_size);
 	
 	tfdt_item->header.size = t_htonl(box_size);
-	strncpy((char*)&tfdt_item->header.type,"tfdt",4);
+	strncpy(tfdt_item->header.type,"tfdt",4);
 	
     const unsigned char TFDT[] = {
 		    0x00, 0x00, 0x00, 0x00, // version(0) & flags
@@ -557,7 +557,7 @@ sdtp_box*	sdtp_box_init(void)
 	memset(sdtp_item,0,sizeof(sdtp_item));
 
 	sdtp_item->header.size = t_htonl(sizeof(sdtp_box));
-	strncpy((char*)&sdtp_item->header.type,"sdtp",4);
+	strncpy(sdtp_item->header.type,"sdtp",4);
 
 	//先不实现，好像没有也没事
 	return NULL;
@@ -574,7 +574,7 @@ trun_box*	trun_box_init(unsigned int trackId)
 
 	memset(trun_item,0,sizeof(trun_box));
 	trun_item->header.size = t_htonl(sizeof(trun_box)); 
-	strncpy((char*)&trun_item->header.type,"trun",4);
+	strncpy(trun_item->header.type,"trun",4);
 	unsigned int flag = 0;
 	
 	if(trackId == VIDEO_TRACK)//video
@@ -627,7 +627,7 @@ mdhd_box* mdhd_box_init(unsigned int timescale,unsigned int duration)
 	memset(mdhd_item,0,sizeof(mdhd_item));
 
 	mdhd_item->header.size = t_htonl(sizeof(mdhd_box));
-	strncpy((char*)&mdhd_item->header.type,"mdhd",4);
+	strncpy(mdhd_item->header.type,"mdhd",4);
 
 	unsigned char MDHD[] = {
             0x00, 0x00, 0x00, 0x00, // version(0) + flags // version(0) + flags		box版本，0或1，一般为0。
@@ -675,7 +675,7 @@ hdlr_box*	hdlr_box_init(unsigned int handler_type)
 	memset(hdlr_item,0,sizeof(box_length));
 
 	hdlr_item->header.size = t_htonl(box_length);
-	strncpy((char*)&hdlr_item->header.type,"hdlr",4);
+	strncpy(hdlr_item->header.type,"hdlr",4);
 	memcpy((unsigned char*)hdlr_item + 8,HDLR,sizeof(HDLR));
 
 	if(handler_type == VIDEO_HANDLER)
@@ -709,7 +709,7 @@ minf_box*	minf_box_init(unsigned int box_length)
 	memset(minf_item,0,box_length);
 
 	minf_item->header.size = t_htonl(box_length);
-	strncpy((char*)&minf_item->header.type,"minf",4);
+	strncpy(minf_item->header.type,"minf",4);
 	
 	return minf_item;
 }
@@ -726,7 +726,7 @@ vmhd_box* vmhd_box_init(void)
 	memset(vmhd_item,0,sizeof(vmhd_box));
 	
 	vmhd_item->header.size = t_htonl(sizeof(vmhd_box));
-	strncpy((char*)&vmhd_item->header.type,"vmhd",4);
+	strncpy(vmhd_item->header.type,"vmhd",4);
 
 	unsigned char VMHD[] = {
             0x00, 0x00, 0x00, 0x01, // version(0) + flags
@@ -751,7 +751,7 @@ smhd_box*	smhd_box_init(void)
 	memset(smhd_item,0,sizeof(smhd_box));
 
 	smhd_item->header.size = t_htonl(sizeof(smhd_box));
-	strncpy((char*)&smhd_item->header.type,"smhd",4);
+	strncpy(smhd_item->header.type,"smhd",4);
 
 	unsigned char SMHD[] = {
             0x00, 0x00, 0x00, 0x00, // version(0) + flags   box版本，0或1，一般为0。
@@ -776,7 +776,7 @@ dinf_box* dinf_box_init(unsigned int box_length)
 	memset(dinf_item,0,box_length);
 
 	dinf_item->header.size = t_htonl(box_length);
-	strncpy((char*)&dinf_item->header.type,"dinf",4);
+	strncpy(dinf_item->header.type,"dinf",4);
 
 	return dinf_item;
 	
@@ -795,7 +795,7 @@ stbl_box*	stbl_box_init(unsigned int box_length)
 
 	memset(stbl_item,0,box_length);
 	stbl_item->header.size = t_htonl(box_length);
-	strncpy((char*)&stbl_item->header.type,"stbl",4);
+	strncpy(stbl_item->header.type,"stbl",4);
 
 	return stbl_item;
 }
@@ -820,7 +820,7 @@ dref_box* dref_box_init(void)
 	memset(dref_item,0,box_length);
 
 	dref_item->header.size = t_htonl(box_length);
-	strncpy((char*)&dref_item->header.type,"dref",4);
+	strncpy(dref_item->header.type,"dref",4);
 	FMP4_DEBUG_LOG("(unsigned char*)&dref_item->header.version - (unsigned char*)dref_item = %d\n",\
 			   (unsigned char*)&dref_item->header.version - (unsigned char*)dref_item);
 	memcpy((unsigned char*)dref_item + 8,DREF,sizeof(DREF));
@@ -875,7 +875,7 @@ stsd_box*  AudioSampleEntry(unsigned char channelCount,unsigned short sampleRate
 	
 	memset(mp4a_item ,0,mp4a_length);
 	mp4a_item->sample_entry.header.size = t_htonl(mp4a_length);
-	strncpy((char*)&mp4a_item->sample_entry.header.type,"mp4a",4);
+	strncpy(mp4a_item->sample_entry.header.type,"mp4a",4);
 
 	memcpy((unsigned char*)mp4a_item + 8  ,mp4a,sizeof(mp4a));
 
@@ -975,7 +975,7 @@ stsd_box*  AudioSampleEntry(unsigned char channelCount,unsigned short sampleRate
 		
 	memset(esds_item,0,esds_length);
 	esds_item->header.size = t_htonl(esds_length);
-	strncpy((char*)&esds_item->header.type,"esds",4);
+	strncpy(esds_item->header.type,"esds",4);
 	memcpy((unsigned char*)esds_item + 8,esds,sizeof(esds));
 
 	//构造 stsd box
@@ -998,8 +998,8 @@ stsd_box*  AudioSampleEntry(unsigned char channelCount,unsigned short sampleRate
 	mp4a_item->sample_entry.header.size = t_htonl(mp4a_length +  esds_length);
 	memcpy((unsigned char*)stsd_item + offset,mp4a_item,mp4a_length);
 	offset += mp4a_length;
-	//unsigned int tmp = (unsigned char*)stsd_item + sizeof(stsd_box) + mp4a_length + esds_length - (unsigned char*)stsd_item;
-	//FMP4_DEBUG_LOG("tmp = %d\n",tmp);
+	unsigned int tmp = (unsigned char*)stsd_item + sizeof(stsd_box) + mp4a_length + esds_length - (unsigned char*)stsd_item;
+	FMP4_DEBUG_LOG("tmp = %d\n",tmp);
 	
 	//拷贝 esds
 	memcpy((unsigned char*)stsd_item + offset ,esds_item,esds_length);
@@ -1007,7 +1007,7 @@ stsd_box*  AudioSampleEntry(unsigned char channelCount,unsigned short sampleRate
 	
 	//修正 stsd box长度
 	stsd_item->header.size = t_htonl(stsd_box_size);
-	strncpy((char*)&stsd_item->header.type,"stsd",4);
+	strncpy(stsd_item->header.type,"stsd",4);
 
 	
 
@@ -1066,11 +1066,11 @@ stsd_box* VideoSampleEntry(unsigned short width,unsigned short height)
 	if(avcc_item->buf_length != t_ntohl(avcc_item->avcc_buf->header.size))
 	{
 		free(avcc_item->avcc_buf);
-		FMP4_ERROR_LOG("avcc_item buf err! avcc_item->buf_length(%d) t_ntohl(avcc_item->avcc_buf->header.size)(%ld)\n",\
+		FMP4_ERROR_LOG("avcc_item buf err! avcc_item->buf_length(%ud) t_ntohl(avcc_item->avcc_buf->header.size)(%ld)\n",\
 					avcc_item->buf_length,t_ntohl(avcc_item->avcc_buf->header.size));
 		return NULL;
 	}
-	print_char_array((unsigned char*)"avcc",(unsigned char*)avcc_item->avcc_buf,avcc_item->buf_length);
+	print_char_array("avcc",(char*)avcc_item->avcc_buf,avcc_item->buf_length);
 	
 	unsigned int box_length = 0;//申请的内存长度
 	unsigned int write_len = 0;//实际写入的长度，用于安全校验
@@ -1088,7 +1088,7 @@ stsd_box* VideoSampleEntry(unsigned short width,unsigned short height)
 	
 	avc1_item->sample_entry.header.size = t_htonl(box_length);
 	FMP4_DEBUG_LOG("avc1_item->sample_entry.header.size  = %x  sizeof(avc1_box) = %d\n",avc1_item->sample_entry.header.size,sizeof(avc1_box));
-	strncpy((char*)&avc1_item->sample_entry.header.type,"avc1",4);
+	strncpy(avc1_item->sample_entry.header.type,"avc1",4);
 	//拷贝AVC1数组
 	FMP4_DEBUG_LOG("sizeof(avc1_item->sample_entry) = %d",sizeof(avc1_item->sample_entry.header));
 	memcpy((unsigned char*)avc1_item + sizeof(avc1_item->sample_entry.header),AVC1,sizeof(AVC1));
@@ -1106,7 +1106,7 @@ stsd_box* VideoSampleEntry(unsigned short width,unsigned short height)
 		return NULL;
 	}
 	
-	print_char_array((unsigned char*)"avc1",(unsigned char*)avc1_item,box_length);
+	print_char_array("avc1",(char*)avc1_item,box_length);
 
 
 	//---stsd----------------------------------------------
@@ -1126,7 +1126,7 @@ stsd_box* VideoSampleEntry(unsigned short width,unsigned short height)
 	int offset = 0;
 	//填充stsd 头部 
 	stsd_item->header.size = t_htonl(box_length);
-	strncpy((char*)&stsd_item->header.type,"stsd",4);
+	strncpy(stsd_item->header.type,"stsd",4);
 	
 	//还有额外的 4字节 entry_count 变量  ，，不要漏了
 	stsd_item->entry_count = t_htonl(1); //entry的个数 默认赋值成 1
@@ -1148,7 +1148,7 @@ stsd_box* VideoSampleEntry(unsigned short width,unsigned short height)
 		return NULL;
 	}
 	//DEBUG***************************************
-	print_char_array((unsigned char*)"stsd",(unsigned char*)stsd_item,box_length);
+	print_char_array("stsd",(char*)stsd_item,box_length);
 
 	//********************************************
 		
@@ -1212,7 +1212,7 @@ stts_box*	stts_box_init(void)
 	}
 	memset(stts_item,0,box_length);
 	stts_item->header.size = t_htonl(box_length);
-	strncpy((char*)&stts_item->header.type,"stts",4);
+	strncpy(stts_item->header.type,"stts",4);
 
 	memcpy(&stts_item->header.version,STTS,sizeof(STTS));
 
@@ -1230,7 +1230,7 @@ stsc_box*	stsc_box_init(void)
 		FMP4_ERROR_LOG("stsc box init failed!\n");
 		return NULL;
 	}
-	strncpy((char*)&stsc_item->header.type,"stsc",4);
+	strncpy(stsc_item->header.type,"stsc",4);
 	return stsc_item;
 }
 
@@ -1253,7 +1253,7 @@ stsz_box* stsz_box_init(void)
 	}
 	memset(stsz_item,0,box_length);
 	stsz_item->header.size = t_htonl(box_length);
-	strncpy((char*)&stsz_item->header.type,"stsz",4);
+	strncpy(stsz_item->header.type,"stsz",4);
 
 	memcpy(&stsz_item->header.version,STSZ,sizeof(STSZ));
 
@@ -1270,7 +1270,7 @@ stco_box*	stco_box_init(void)
 		FMP4_ERROR_LOG("stsc box init failed!\n");
 		return NULL;
 	}
-	strncpy((char*)&stco_item->header.type,"stco",4);
+	strncpy(stco_item->header.type,"stco",4);
 	return stco_item;
 }
 	
@@ -1289,7 +1289,7 @@ avc1_box* avc1_box_init(void)
 {
 		//已经在VideoSampleEntry里边实现
 		//包括 avcc box 
-		return NULL;
+	return NULL;
 }
 
 mp4a_box* mp4a_box_init(void)
@@ -1330,20 +1330,19 @@ int FrameType(unsigned char* naluData)
         index = NALU_I;
         //printf("---NALU_I---\n");
     }
-    else if(naluData[0]==0 && naluData[1]==0 && naluData[2]==0 && naluData[3]==1 && (naluData[4]==0x61||naluData[4]==0x41))
+    else if(naluData[0]==0 && naluData[1]==0 && naluData[2]==0 && naluData[3]==1 && (naluData[4]==0x61 || naluData[4]==0x41))
     {
         index = NALU_P;
        //printf("---NALU_P---\n");
     }
-    else if(naluData[0]==0 && naluData[1]==0 && naluData[2]==0 && naluData[3]==1 && naluData[4]==0x06)
+    else if(naluData[0]==0 && naluData[1]==0 && naluData[2]==0 && naluData[3]==1 && naluData[4]==0x6)
     {
         index = NALU_SET;
         //printf("---NALU_SET---\n");
     }
 	else
 	{
-		FMP4_ERROR_LOG("---NALU_unknow!!---naluData[0,4] = %#x %#x %#x %#x %#x\n",naluData[0],naluData[1],
-																			naluData[2],naluData[3],naluData[4]);
+		FMP4_ERROR_LOG("---NALU_unknow!!---\n");
 	}
 
 	return index;
@@ -1491,8 +1490,8 @@ int init_SPS_PPS(void *IDR_frame , unsigned int frame_length)
 		
 		if(data[0]==0 && data[1]==0 && data[2]==0 && data[3]==1 && data[4]==0x65) // I NALU	
 			I_start = data;
-		//注意，SEI NALU 并不是一定得有，君正编码的IDR帧就没有发现 SEI NALU
-		if(pps_start != NULL /*&& sei_start != NULL*/ && I_start != NULL)
+		
+		if(pps_start != NULL && /*sei_start != NULL && */I_start != NULL)
 			break;
 		
 		data = (char*)IDR_frame + i;
@@ -1510,7 +1509,7 @@ int init_SPS_PPS(void *IDR_frame , unsigned int frame_length)
 		FMP4_ERROR_LOG("set_sps failed !\n");
 		return -1;
 	}
-
+	
 	int pps_len = (sei_start == NULL)?(I_start - pps_start - 4):(sei_start - pps_start - 4);
 	if(set_pps(pps_start + 4, pps_len) < 0)
 	{
@@ -1573,6 +1572,7 @@ unsigned char SEI_1920[] = {0xE5,0x01,0x2E, 0x80};
 avcc_box_info_t *	avcc_box_init(void *IDR_frame,unsigned int IDR_len)
 {
 	int ret;
+	//int len;
 	
 	//计算 PPS的数据长度
 	FMP4_DEBUG_LOG("start avcc_box_init..\n");
@@ -1596,7 +1596,7 @@ avcc_box_info_t *	avcc_box_init(void *IDR_frame,unsigned int IDR_len)
 		return NULL;
 	}
 	FMP4_DEBUG_LOG("SPS_len =  %d\n",SPS_len);
-	print_char_array((unsigned char*)"SPS NALU :", (unsigned char*)my_SPS , 10);
+	print_char_array("SPS NALU :", (char*)my_SPS , 10);
 	
 	if( get_pps((char**)&my_PPS, (int*)&PPS_len) < 0)
 	{
@@ -1604,7 +1604,7 @@ avcc_box_info_t *	avcc_box_init(void *IDR_frame,unsigned int IDR_len)
 		return NULL;
 	}
 	FMP4_DEBUG_LOG("PPS_len =  %d\n",PPS_len);
-	print_char_array((unsigned char*)"PPS NALU :", (unsigned char*)my_PPS , 10);
+	print_char_array("PPS NALU :", (char*)my_PPS , 10);
 	
 
 #if 1 //和 海思的PPS数据头内容套不上
@@ -1620,9 +1620,19 @@ avcc_box_info_t *	avcc_box_init(void *IDR_frame,unsigned int IDR_len)
 		unsigned char profile_compatibility = 0x00;	//naluData[offset+2];  // profile_compatibility
 		unsigned char AVCLevelIndication  =   0x2A;	//naluData[offset+3];  // AVCLevelIndication
 	#endif
-		
+
+	/*
+		关于 NALULengthSizeMinusOne（对应如下reserved_6_lengthSizeMinusOne_2）：
+		用于存储每个NALU长度的字节数，即 mdat box 下每个帧数据的长度信息描述，一般放在每帧数据最前边，常使用4字节。
+		主要对应参数：Mp4 Reader解析器参数：NAL Unit length size ：用于描述“存储每个NALU长度” 的字节数 
+		只有最后两个bit位有效，前6个bit位固定为 1111 1100 ，
+		最后2个bit位赋值：（对应如下的参数：_naluLengthSize ）
+						  1---表NALU长度的字节数为2字节
+						  2---表NALU长度的字节数为3字节
+						  3---表NALU长度的字节数为4字节，4比较常用
+	*/
 	unsigned char reserved6 = 0xfc; //二进制：1111 1100
-	unsigned char _naluLengthSize = (my_SPS[4] & 3) + 1;  // lengthSizeMinusOne   上一个avc 长度
+	unsigned char _naluLengthSize = 3; //(my_SPS[4] & 3) + 1;  //NALU长度的字节数为4字节
 	unsigned char reserved_6_lengthSizeMinusOne_2 = reserved6|_naluLengthSize;//reserved_6_lengthSizeMinusOne_2
 
 	unsigned char reserved3 = 0xe0;//二进制：1110 0000
@@ -1662,7 +1672,7 @@ avcc_box_info_t *	avcc_box_init(void *IDR_frame,unsigned int IDR_len)
 		memset(avcc_item,0,box_len);
 
 		avcc_item->header.size = t_htonl(box_len);
-		strncpy((char*)&avcc_item->header.type,"avcC",4);
+		strncpy(avcc_item->header.type,"avcC",4);
 		avcc_item->configurationVersion = configurationVersion;
 		avcc_item->AVCProfileIndication = AVCProfileIndication;
 		avcc_item->profile_compatibility = profile_compatibility;
@@ -1911,7 +1921,7 @@ avcc_box_info_t *	avcc_box_init(unsigned char* naluData, int naluSize)
 		memset(avcc_item,0,box_len);
 
 		avcc_item->header.size = t_htonl(box_len);
-		strncpy((char*)&avcc_item->header.type,"Ccva",4);
+		strncpy(avcc_item->header.type,"Ccva",4);
 		memcpy(&avcc_item->configurationVersion,&configurationVersion,sizeof(configurationVersion));
 		memcpy(&avcc_item->AVCProfileIndication,&AVCProfileIndication,sizeof(AVCProfileIndication));
 		memcpy(&avcc_item->profile_compatibility,&profile_compatibility,sizeof(profile_compatibility));
@@ -1967,6 +1977,10 @@ void Box_global_variable_reset(void)
 /***一般mp4文件部分********************************************************************************
 专门针对普通mp4文件部分
 *********************************************************************************************************/
+
+
+
+
 
 
 

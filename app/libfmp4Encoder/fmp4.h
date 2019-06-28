@@ -9,9 +9,6 @@
 #define OUT  //标记为输出参数
 #define IN	 //标记为输入参数
 
-/*---#平台控制开关------------------------------------------------------------*/
-#define PLATFORM_HISI  0						//海思
-#define PLATFORM_INGENIC  !(PLATFORM_HISI)		//君正
 
 /**************************************************************************
 生成的fmp4文件直接保存到文件/内存
@@ -203,15 +200,8 @@ n*(moof + mdat)模式
 #define REMUX_AUDIO_BUF_SIZE  (34000)
 
 
-//无法确定1s的h264数据有多大，给个大概值 海思：  30s大概3M    。。。。1S大概3*1024KB/30 = 102.4KB
-//										 君正：  大概是海思的两倍 
-#if PLATFORM_HISI
-#define REMUX_VIDEO_BUF_SIZE  (1024*300) 	//海思
-#elif PLATFORM_INGENIC
-#define REMUX_VIDEO_BUF_SIZE  (1024*300*3)	//君正
-#else
-
-#endif
+//无法确定1s的h264数据有多大，给个大概值  30s大概3M    。。。。1S大概3*1024KB/30 = 102.4KB
+#define REMUX_VIDEO_BUF_SIZE  (1024*512) 
 
 /*audio trun box里边允许容纳的最大samples（一帧一个sample）数，
 该值不能小于传入audio数据的帧率，音视频混合器 remux 是按照1S的数据量来打包的
@@ -252,9 +242,9 @@ typedef struct _sample_A_info_t  //audio
 */
 typedef struct _buf_remux_video_t
 {
-	unsigned char*	remux_video_buf;	//buf的首地址
-	unsigned char*	write_pos;			//写指针的位置
-	unsigned char*	read_pos;			//读指针位置
+	char*	remux_video_buf;	//buf的首地址
+	char*	write_pos;			//写指针的位置
+	char*	read_pos;			//读指针位置
 	unsigned int 	frame_count;		//buf 中已经存储的帧数量
 	unsigned int 	frame_rate; 		//外部传入视频数据的原本帧率
 	sample_V_info_t sample_info[TRUN_VIDEO_MAX_SAMPLES]; //buffer 中 video sample（帧）的信息数组指针
@@ -304,8 +294,6 @@ int sps_pps_parameter_set(void *IDR_frame,unsigned int IDR_len);
 
 
  #endif
-
-
 
 
 

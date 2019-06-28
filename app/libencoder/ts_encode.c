@@ -47,8 +47,7 @@ extern int nalu_type(unsigned char* naluData, int naluSize);
 //用来以十六进制字节流打印box
 extern void print_array(unsigned char* box_name,unsigned char*start,unsigned int length);
 
-#define RECODE_STREAM_ID 0     //进行录像的流id       ： 0或者1
-#define VIDEO_RECORD_TIME 15   //录像时长 单位：S    
+#define RECODE_STREAM_ID 0     //进行录像的流id       ： 0或者1   
 #define FIND_IDR_MAX_NUM  200  //为了寻找IDR的的最大循环次数
 
 #define AUDIO_SAMPLING_RATE (16000) //音频的原始采样率（PCM）
@@ -288,6 +287,7 @@ ERR:
     printf("******ERR TS_record !!!************************************************************************\n\n");
     return -1;
 }
+
 
 
 
