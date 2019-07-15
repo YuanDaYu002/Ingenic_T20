@@ -329,14 +329,14 @@ static int video_send_Vframe_to_CirBuf(IMPEncoderStream *stream,int index)
 		}
 		else //原有空间不够大，需要重新申请
 		{
-			DEBUG_LOG("TmpStreamBuffer[%d] realloc......\n",index);
+			//DEBUG_LOG("TmpStreamBuffer[%d] realloc......\n",index);
 			TmpStreamBuffer[index] = (char*)realloc(TmpStreamBuffer[index],frame_size);
 			if(NULL == TmpStreamBuffer[index])
 			{
 				return HLE_RET_ENORESOURCE;
 			}
 			TmpStreamBufferSize[index] = frame_size;
-			DEBUG_LOG("realloc success!\n");
+			//DEBUG_LOG("realloc success!\n");
 		}
 		
 		memset(TmpStreamBuffer[index],0,TmpStreamBufferSize[index]);
@@ -455,7 +455,7 @@ int video_init(void)
 			
             if (S_RC_METHOD == ENC_RC_MODE_CBR) {
                 rc_attr->attrRcMode.rcMode = ENC_RC_MODE_CBR;
-                rc_attr->attrRcMode.attrH264Cbr.outBitRate = (double)1000.0 * (imp_chn_attr_tmp->picWidth * imp_chn_attr_tmp->picHeight) / (1280 * 720);
+                rc_attr->attrRcMode.attrH264Cbr.outBitRate = (double)1500.0 * (imp_chn_attr_tmp->picWidth * imp_chn_attr_tmp->picHeight) / (1280 * 720);
                 rc_attr->attrRcMode.attrH264Cbr.maxQp = 45;
                 rc_attr->attrRcMode.attrH264Cbr.minQp = 15;
                 rc_attr->attrRcMode.attrH264Cbr.iBiasLvl = 0;
@@ -968,6 +968,7 @@ static int jpeg_exit(void)
 	
 	return HLE_RET_OK;
 }
+
 
 
 

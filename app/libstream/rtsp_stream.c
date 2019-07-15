@@ -199,7 +199,7 @@ int CRTSPStream_SendH264Data(const unsigned char *data,unsigned int size)
 	while(sem_trywait(semw) < 0)
 	{
 		closed_flag++;
-		if(closed_flag > 2000/10) //时长达2s，返回“客户端会话关闭”状态
+		if(closed_flag > 5000/10) //时长达2s，返回“客户端会话关闭”状态
 		{
 			closed_flag = 0;
 			return 2;
@@ -210,6 +210,7 @@ int CRTSPStream_SendH264Data(const unsigned char *data,unsigned int size)
 	closed_flag = 0;
 	
 	//统一在头4个字节填充数据长度信息
+	printf("[MEDIA client]******** GetFrameData can write !********");
 	memcpy(shm_buf,&size,4);
 	char*tmp_buf=(char*)shm_buf;
 	printf("[send]shm_buf[]=%d %d %d %d %d\n",tmp_buf[0],tmp_buf[1],tmp_buf[2],tmp_buf[3],tmp_buf[4]);
@@ -234,6 +235,7 @@ int CRTSPStream_start_send(void)
 	sem_post(semw); //恢复可写状态
 	return 1;
 }
+
 
 
 

@@ -1055,7 +1055,7 @@ int audio_send_Aframe_to_cirbuf(void *buf,E_AENC_STANDARD enc_type)
 		}
 		else //原有空间不够大，需要重新申请
 		{
-			DEBUG_LOG("tmp_Aframe_buf realloc......\n");
+			//DEBUG_LOG("tmp_Aframe_buf realloc......\n");
 			tmp_Aframe_buf = (char*)realloc(tmp_Aframe_buf,frame_size);
 			if(NULL == tmp_Aframe_buf)
 			{
@@ -1171,6 +1171,7 @@ int audio_exit(void)
 	
 	return HLE_RET_OK;
 }
+
 
 
 

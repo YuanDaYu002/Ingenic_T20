@@ -206,16 +206,16 @@ int main(int argc,char*argv[])
 	if(ret < 0) goto ERR;
 	
 	/*---#从循环缓存池获取编码帧(H264 + AAC/PCM)，直接保存到文件-----------------------------------*/
-	#if 0
-//	ret = save_h264_file_from_cirbuf(IMAGE_SIZE_640x360,8,"/tmp/cirbuffer_chn_1.h264");	
-//	if(ret < 0) goto ERR;
+#if 0
+	ret = save_h264_file_from_cirbuf(IMAGE_SIZE_640x360,8,"/tmp/cirbuffer_chn_1.h264");	
+	if(ret < 0) goto ERR;
 	
 	ret = save_h264_file_from_cirbuf(IMAGE_SIZE_1920x1080,8,"/tmp/cirbuffer_chn_0.h264");
 	if(ret < 0) goto ERR;
-	#endif
+#endif
 
 	//播放g711文件 test
-	#if 0	//该种方式不能正常解码播放
+#if 0	//该种方式不能正常解码播放
 	sleep(3);
 	char buf[1024] = {0};
 	FILE* fd = fopen("/system/bin/g711_file.g711","r");
@@ -248,11 +248,12 @@ int main(int argc,char*argv[])
 
 	fclose(fd);
 	
-	#endif 
+#endif 
 
 
-	/*---#测试fmp4文件录制，该部分录制的文件格式正确，但態解码出来视频，
+	/*---#测试fmp4文件录制
 	因为牵涉到HLS协议不兼容 MP4 + M3U8 ，后续再调试------------------------------*/
+#if 0
 	fmp4_out_info_t fmp4_info = {0};
 	#if 0
 	fmp4_info.file_mode.file_name = "/tmp/t20_fmp4_1920x1080_.mp4";
@@ -274,38 +275,42 @@ int main(int argc,char*argv[])
 		ERROR_LOG("fmp4 record failed!\n");
 		
 	}
+#endif
 	/*---#------------------------------------------------------------*/
 
 
 	/*---#录TS视频------------------------------------------------------------*/
-//	void* out_buf = NULL;
-//    int out_len = 0;
-//	if(ts_record(&out_buf,&out_len,15) < 0)
-//	{
-//		ERROR_LOG("ts_record failed!\n");
-//		return -1;
-//	}
+#if 0
+	void* out_buf = NULL;
+    int out_len = 0;
+	if(ts_record(&out_buf,&out_len,15) < 0)
+	{
+		ERROR_LOG("ts_record failed!\n");
+		return -1;
+	}
 
-//	int fd = open("/tmp/T20_ts_main.ts",O_RDWR|O_CREAT|O_TRUNC,0755);
-//	if(fd < 0)
-//	{
-//		ERROR_LOG("open /tmp/T20_ts_main.ts failed!\n");
-//		return -1;
-//	}
+	int fd = open("/tmp/T20_ts_main.ts",O_RDWR|O_CREAT|O_TRUNC,0755);
+	if(fd < 0)
+	{
+		ERROR_LOG("open /tmp/T20_ts_main.ts failed!\n");
+		return -1;
+	}
 
-//	ret = write(fd,out_buf,out_len);
-//	if(ret != out_len)
-//	{
-//		ERROR_LOG("write file failed!\n");
-//		close(fd);
-//		return -1;
-//	}
+	ret = write(fd,out_buf,out_len);
+	if(ret != out_len)
+	{
+		ERROR_LOG("write file failed!\n");
+		close(fd);
+		return -1;
+	}
 
-//	close(fd);
-//	free(out_buf);
+	close(fd);
+	free(out_buf);
+#endif
 	/*---#------------------------------------------------------------*/
 	
-			
+	extern int start_rtsp_main_task(void);		
+	start_rtsp_main_task();
 
 	
 	DEBUG_LOG("--------checkCPUendian ret (%d)\n",my_checkCPUendian());
@@ -314,7 +319,7 @@ int main(int argc,char*argv[])
 	while(1)
 	{
 		sleep(1);
-		printf("...\n");
+		//printf("...\n");
 		i--;
 	}
 
@@ -326,6 +331,9 @@ ERR:
 	
 	return 0;
 }
+
+
+
 
 
 

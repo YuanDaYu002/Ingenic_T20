@@ -76,7 +76,8 @@ void* rtsp_main(void*args)
 		ERROR_LOG( "Create live555MediaServer_task failed!\n");
 		pthread_exit(0);
 	}
-
+	
+	sleep(5);//等待live555MediaServer_task正常运行
 	
 	// system("/system/bin/live555MediaServer"); //这种方法调用会阻塞在这，错误
 
@@ -89,6 +90,8 @@ void* rtsp_main(void*args)
 		ERROR_LOG("CircularBufferGetHandle failed !\n");
 		return NULL;
 	}
+
+
 
 	int user_id = CircularBufferRequestUserID(buffer_handle);
 	if(user_id < 0)
