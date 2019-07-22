@@ -210,10 +210,10 @@ int CRTSPStream_SendH264Data(const unsigned char *data,unsigned int size)
 	closed_flag = 0;
 	
 	//统一在头4个字节填充数据长度信息
-	printf("[MEDIA client]******** GetFrameData can write !********");
+	//printf("[MEDIA client]******** GetFrameData can write !********");
 	memcpy(shm_buf,&size,4);
-	char*tmp_buf=(char*)shm_buf;
-	printf("[send]shm_buf[]=%d %d %d %d %d\n",tmp_buf[0],tmp_buf[1],tmp_buf[2],tmp_buf[3],tmp_buf[4]);
+	//char*tmp_buf=(char*)shm_buf;
+	//printf("[send]shm_buf[]=%d %d %d %d %d\n",tmp_buf[0],tmp_buf[1],tmp_buf[2],tmp_buf[3],tmp_buf[4]);
 	memcpy(shm_buf+4,data,size);
 	
 	sem_post(semr); 

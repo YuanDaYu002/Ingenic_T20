@@ -399,9 +399,9 @@ int video_init(void)
 			
             if (S_RC_METHOD == ENC_RC_MODE_CBR) {
                 rc_attr->attrRcMode.rcMode = ENC_RC_MODE_CBR;
-                rc_attr->attrRcMode.attrH264Cbr.outBitRate = (double)1000.0 * (imp_chn_attr_tmp->picWidth * imp_chn_attr_tmp->picHeight) / (1280 * 720);
-                rc_attr->attrRcMode.attrH264Cbr.maxQp = 30;
-                rc_attr->attrRcMode.attrH264Cbr.minQp = 15;
+                rc_attr->attrRcMode.attrH264Cbr.outBitRate = (double)1200.0 * (imp_chn_attr_tmp->picWidth * imp_chn_attr_tmp->picHeight) / (1280 * 720);
+                rc_attr->attrRcMode.attrH264Cbr.maxQp = 45;
+                rc_attr->attrRcMode.attrH264Cbr.minQp = 20;
                 rc_attr->attrRcMode.attrH264Cbr.iBiasLvl = 0;
                 rc_attr->attrRcMode.attrH264Cbr.frmQPStep = 3;
                 rc_attr->attrRcMode.attrH264Cbr.gopQPStep = 15;
@@ -585,7 +585,7 @@ int calculate_bitrate_size(unsigned int chn,IMPEncoderStream * stream)
 	int i = 0;
 	static unsigned int framerate_one_sec[FS_CHN_NUM] = {0};
 	static unsigned long long int bit_one_sec[FS_CHN_NUM] = {0};
-	static struct timeval bitrate_time_start[FS_CHN_NUM] = {0};
+	static struct timeval bitrate_time_start[FS_CHN_NUM] = {{0}};
 	
 	struct timeval current_time = {0};
 

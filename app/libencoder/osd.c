@@ -685,7 +685,7 @@ static void *timestamp_update_func(void *args)
 						
 				attach_BMP_data_to_OSD_region(osd_bmp_attr,org_bmp,&OSD_region_attrs[k][TIME_OSD_INDEX]);
 
-				printf("org_sfc.u32Width(%d) org_sfc.u32Height(%d)\n",org_sfc.u32Width,org_sfc.u32Height);
+				//printf("org_sfc.u32Width(%d) org_sfc.u32Height(%d)\n",org_sfc.u32Width,org_sfc.u32Height);
 		 
 				rAttrData.picData.pData = OSD_region_attrs[k][TIME_OSD_INDEX].OSD_data_buf;
 				IMP_OSD_UpdateRgnAttrData(prHander_timestamp[k], &rAttrData);
@@ -814,7 +814,7 @@ static void *bitrate_update_func(void *args)
 						
 				attach_BMP_data_to_OSD_region(osd_bmp_attr,org_bmp,&OSD_region_attrs[k][RATE_OSD_INDEX]);
 
-				printf("org_sfc.u32Width(%d) org_sfc.u32Height(%d)\n",org_sfc.u32Width,org_sfc.u32Height);
+				//printf("org_sfc.u32Width(%d) org_sfc.u32Height(%d)\n",org_sfc.u32Width,org_sfc.u32Height);
 		 
 				rAttrData.picData.pData = OSD_region_attrs[k][RATE_OSD_INDEX].OSD_data_buf;
 				IMP_OSD_UpdateRgnAttrData(prHander_bitrate[k], &rAttrData);
