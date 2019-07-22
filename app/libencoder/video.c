@@ -24,74 +24,16 @@
 #include "CircularBuffer.h"
 #include "encoder.h"
 
+/*---#统计H264的实时码率------------------------------------------------------------*/
+volatile static HLE_U32 H264_bitrate[FS_CHN_NUM];	//实时码率
+volatile static HLE_U32 H264_framerate[FS_CHN_NUM]; //实时编码帧率
+pthread_mutex_t H264_bitrate_mut;
+
 
 /*---#编码Channel码率控制器模式---------------------------------------------------*/
 static const int S_RC_METHOD = ENC_RC_MODE_CBR;
 
 /*---#编码通道参数配置------------------------------------------------------------*/
-#if 0
-struct chn_conf chn[FS_CHN_NUM] = {
-	{	CH0_INDEX, 		//main channel
-		CHN0_EN,
-		{   //fs_chn_attr
-			SENSOR_WIDTH,				//图片宽度
-			SENSOR_HEIGHT,				//图片高度
-			PIX_FMT_NV12, 				//图片格式
-			/*图片裁剪属性*/
-			{	//crop
-				CROP_EN, 				//使能
-				0,						//裁剪左起始点
-				0,						//裁剪上起始点
-				SENSOR_WIDTH,			//图片裁剪宽度
-				SENSOR_HEIGHT,			//图片裁剪高度
-			},
-			/*图片缩放属性*/
-			{	//scaler	
-				0,						//不使能
-			},
-			VENC_FRAME_RATE_NUM, 		//通道的输出帧率分子
-			VENC_FRAME_RATE_DEN,		//通道的输出帧率分母
-			3,							//video buffer 数量
-			FS_PHY_CHANNEL, 			//通道类型
-
-		},
-		{ DEV_ID_FS, 0, 0},				//framesource_chn  视频源{设备ID，组ID，输出ID}
-		{ DEV_ID_ENC, 0, 0},			//imp_encoder 编码  	{设备ID，组ID，输出ID}
-		{DEV_ID_OSD, 0, 0},				//osdcell	{设备ID，组ID，输出ID}
-	},
-	{
-		CH1_INDEX,			//second channel
-		CHN1_EN,
-		{	//fs_chn_attr
-			SENSOR_WIDTH_SECOND,		//图片宽度
-			SENSOR_HEIGHT_SECOND,		//图片高度
-			PIX_FMT_NV12,					//图片格式
-			/*图片裁剪属性*/
-			{	//crop
-				CROP_EN,					//使能
-				0,							//裁剪左起始点
-				0,							//裁剪上起始点
-				SENSOR_WIDTH,				//图片裁剪宽度
-				SENSOR_HEIGHT,			//图片裁剪高度
-			},
-			/*图片缩放属性*/
-			{	//scaler
-				1,						//使能
-				SENSOR_WIDTH_SECOND,	//缩放后的图片宽度
-				SENSOR_HEIGHT_SECOND,//缩放后的图片高度
-			},
-			VENC_FRAME_RATE_NUM,	//通道的输出帧率分子
-			VENC_FRAME_RATE_DEN,	//通道的输出帧率分母
-			3,								//video buffer 数量
-			FS_PHY_CHANNEL,					//通道类型
-		},
-		{ DEV_ID_FS, 1, 0},		//framesource_chn 视频源{设备ID，组ID，输出ID}
-		{ DEV_ID_ENC, 1, 0},			//imp_encoder 编码	{设备ID，组ID，输出ID}
-		{DEV_ID_OSD, 1, 0},				//osdcell OSD	{设备ID，组ID，输出ID}
-	}
-};
-
-#else
 struct chn_conf chn[FS_CHN_NUM] = {
 	{
 		.index = CH0_INDEX, 		//main channel
@@ -150,7 +92,7 @@ struct chn_conf chn[FS_CHN_NUM] = {
 		.osdcell = {DEV_ID_OSD, 1, 0},				//OSD	{设备ID，组ID，输出ID}
 	},
 };
-#endif
+
 
 static int jpeg_init(void);
 static int jpeg_exit(void);
@@ -412,6 +354,8 @@ int video_init(void)
 	IMPFSChnAttr *imp_chn_attr_tmp;
 	IMPEncoderCHNAttr channel_attr;
 
+	pthread_mutex_init(&H264_bitrate_mut,NULL);
+
 	for (i = 0; i <  FS_CHN_NUM; i++) {
 		if (chn[i].enable) {
 			
@@ -455,8 +399,8 @@ int video_init(void)
 			
             if (S_RC_METHOD == ENC_RC_MODE_CBR) {
                 rc_attr->attrRcMode.rcMode = ENC_RC_MODE_CBR;
-                rc_attr->attrRcMode.attrH264Cbr.outBitRate = (double)1500.0 * (imp_chn_attr_tmp->picWidth * imp_chn_attr_tmp->picHeight) / (1280 * 720);
-                rc_attr->attrRcMode.attrH264Cbr.maxQp = 45;
+                rc_attr->attrRcMode.attrH264Cbr.outBitRate = (double)1000.0 * (imp_chn_attr_tmp->picWidth * imp_chn_attr_tmp->picHeight) / (1280 * 720);
+                rc_attr->attrRcMode.attrH264Cbr.maxQp = 30;
                 rc_attr->attrRcMode.attrH264Cbr.minQp = 15;
                 rc_attr->attrRcMode.attrH264Cbr.iBiasLvl = 0;
                 rc_attr->attrRcMode.attrH264Cbr.frmQPStep = 3;
@@ -586,6 +530,89 @@ int video_start(int i)
 
 }
 
+/*******************************************************************************
+*@ Description    :获取实时码率函数
+*@ Input          :<chn>通道
+*@ Output         :	<bitrate>码率(kpbs)
+					<framerate>帧率
+*@ Return         :
+*@ attention      :
+*******************************************************************************/
+int get_H264_bitrate(unsigned int chn,unsigned int *bitrate,unsigned int *framerate)
+{
+	pthread_mutex_lock(&H264_bitrate_mut);
+	*bitrate = H264_bitrate[chn];
+	*framerate = H264_framerate[chn];
+	pthread_mutex_unlock(&H264_bitrate_mut);
+
+	return 0;
+}
+
+/*******************************************************************************
+*@ Description    :设置实时码率函数
+*@ Input          :<chn>通道
+					<bitrate>码率（kpbs）
+					<framerate>帧率
+*@ Output         :
+*@ Return         :
+*@ attention      :
+*******************************************************************************/
+int set_H264_bitrate(unsigned int chn,unsigned int bitrate,unsigned int framerate)
+{
+	pthread_mutex_lock(&H264_bitrate_mut);
+	H264_bitrate[chn] = bitrate;
+	H264_framerate[chn] = framerate;
+	pthread_mutex_unlock(&H264_bitrate_mut);
+
+	return 0;
+}
+
+/*******************************************************************************
+*@ Description    :统计码H264数据帧，码率大小
+*@ Input          :<chn>编码通道号
+					<stream>码流描述结构
+*@ Output         :
+*@ Return         :比特率的值（单位：kpbs）
+*@ attention      :成功：0
+*******************************************************************************/
+int calculate_bitrate_size(unsigned int chn,IMPEncoderStream * stream)
+{
+	if(NULL == stream)
+	{
+		return -1;
+	}
+
+	int i = 0;
+	static unsigned int framerate_one_sec[FS_CHN_NUM] = {0};
+	static unsigned long long int bit_one_sec[FS_CHN_NUM] = {0};
+	static struct timeval bitrate_time_start[FS_CHN_NUM] = {0};
+	
+	struct timeval current_time = {0};
+
+	framerate_one_sec[chn] ++;
+	for(i = 0;i<stream->packCount;i++)
+	{
+		bit_one_sec[chn] += stream->pack->length*8; //比特率按bit算
+	}
+	
+	gettimeofday(&current_time,NULL);
+	if(0 == bitrate_time_start[chn].tv_sec)//首次初始化
+	{
+		memcpy(&bitrate_time_start[chn],&current_time,sizeof(struct timeval));
+	}
+		
+	if(current_time.tv_sec - bitrate_time_start[chn].tv_sec >= 1)//1S统计一次
+	{		
+		memcpy(&bitrate_time_start[chn],&current_time,sizeof(struct timeval));
+		set_H264_bitrate(chn,(unsigned int)bit_one_sec[chn]/1000,framerate_one_sec[chn]);//返回的单位是kpbs
+		bit_one_sec[chn] = 0;
+		framerate_one_sec[chn] = 0;
+	}
+	
+	return 0;
+}
+
+
 
 /*******************************************************************************
 *@ Description    :
@@ -657,6 +684,7 @@ void *video_get_h264_frame_func(void *args)
 		//DEBUG
 		frame_count++;
 		
+		calculate_bitrate_size(i,&stream);
 		video_send_Vframe_to_CirBuf(&stream,i);//加锁在循环buffer放入数据的时候有
 
 		IMP_Encoder_ReleaseStream(i, &stream);
@@ -772,6 +800,8 @@ int video_exit(void)
 
 	//后边需要修改
 
+	pthread_mutex_destroy(&H264_bitrate_mut);
+	
 	/* Step.c Encoder exit */
 	ret = encoder_chn_exit(ENC_H264_CHANNEL);
 	if (ret < 0) {
@@ -968,6 +998,7 @@ static int jpeg_exit(void)
 	
 	return HLE_RET_OK;
 }
+
 
 
 

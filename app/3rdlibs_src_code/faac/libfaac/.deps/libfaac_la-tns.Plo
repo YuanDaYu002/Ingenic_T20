@@ -1,0 +1,138 @@
+libfaac_la-tns.lo: tns.c \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/math.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/features.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/uClibc_config.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/sys/cdefs.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/huge_val.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/huge_valf.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/huge_vall.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/inf.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/nan.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/mathdef.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/sgidefs.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/mathcalls.h \
+ frame.h ../config.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../lib/gcc/mips-linux-gnu/4.7.2/include/stdint.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/stdint.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/wchar.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/wordsize.h \
+ ../include/faac.h ../include/faaccfg.h coder.h channels.h blockswitch.h \
+ fft.h quantize.h ../include/faaccfg.h bitstream.h tns.h util.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/stdlib.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../lib/gcc/mips-linux-gnu/4.7.2/include/stddef.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/sys/types.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/types.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/typesizes.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/pthreadtypes.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/endian.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/endian.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/byteswap.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/byteswap.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/byteswap-common.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/time.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/sys/select.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/select.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/sigset.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/time.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/sys/sysmacros.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/alloca.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/memory.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/string.h
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/math.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/features.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/uClibc_config.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/sys/cdefs.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/huge_val.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/huge_valf.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/huge_vall.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/inf.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/nan.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/mathdef.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/sgidefs.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/mathcalls.h:
+
+frame.h:
+
+../config.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../lib/gcc/mips-linux-gnu/4.7.2/include/stdint.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/stdint.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/wchar.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/wordsize.h:
+
+../include/faac.h:
+
+../include/faaccfg.h:
+
+coder.h:
+
+channels.h:
+
+blockswitch.h:
+
+fft.h:
+
+quantize.h:
+
+../include/faaccfg.h:
+
+bitstream.h:
+
+tns.h:
+
+util.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/stdlib.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../lib/gcc/mips-linux-gnu/4.7.2/include/stddef.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/sys/types.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/types.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/typesizes.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/pthreadtypes.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/endian.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/endian.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/byteswap.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/byteswap.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/byteswap-common.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/time.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/sys/select.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/select.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/sigset.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/time.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/sys/sysmacros.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/alloca.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/memory.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/string.h:

@@ -232,13 +232,6 @@ int encoder_system_start(void)
 		return HLE_RET_ERROR;
 	}
 #endif
-	/*---#创建OSD实时更新线程-----------------------------------------------------*/
-	ret = timestamp_update_task();
-	if(ret < 0) 
-	{
-		ERROR_LOG("create timestamp_update_task failed !\n");
-		return HLE_RET_ERROR;
-	}
 
 	/*---#创建h264实时编码帧获取线程----------------------------------------------*/
 	ret = video_get_h264_frame_task();
@@ -247,6 +240,26 @@ int encoder_system_start(void)
 		ERROR_LOG("create video_get_h264_frame_task failed !\n");
 		return HLE_RET_ERROR;
 	}
+
+
+	/*---#创建OSD实时更新线程-----------------------------------------------------*/
+#if ENABLE_OSD  //OSD初始化部分
+	ret = timestamp_update_task();
+	if(ret < 0) 
+	{
+		ERROR_LOG("create timestamp_update_task failed !\n");
+		return HLE_RET_ERROR;
+	}
+
+	ret = bitrate_update_task();
+	if(ret < 0) 
+	{
+		ERROR_LOG("create bitrate_update_task failed !\n");
+		return HLE_RET_ERROR;
+	}
+#endif
+
+
 
 	return HLE_RET_OK;
 }

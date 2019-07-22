@@ -48,10 +48,6 @@ extern "C"
 #define STREAM_FILE_PATH_PREFIX		"/tmp"
 #define SNAP_FILE_PATH_PREFIX		"/tmp"
 
-#define OSD_REGION_WIDTH		16
-#define OSD_REGION_HEIGHT		34
-#define OSD_REGION_WIDTH_SEC	8
-#define OSD_REGION_HEIGHT_SEC   18
 
 
 #define SLEEP_TIME				1
@@ -64,7 +60,6 @@ extern "C"
 #define CHN_ENABLE 			1
 #define CHN_DISABLE			0
 
-/*#define SUPPORT_RGB555LE*/
 
 struct chn_conf{
 	unsigned int index;//0 for main channel ,1 for second channel
@@ -106,6 +101,27 @@ int video_get_h264_frame_task(void);
 					2.抓拍一帧jpeg图像后会自动停止接收抓拍图像
 *******************************************************************************/
 int jpeg_get_one_snap(unsigned int index);
+
+/*******************************************************************************
+*@ Description    :获取实时码率函数
+*@ Input          :<chn>通道
+*@ Output         :	<bitrate>码率(kpbs)
+					<framerate>帧率
+*@ Return         :
+*@ attention      :
+*******************************************************************************/
+int get_H264_bitrate(unsigned int chn,unsigned int *bitrate,unsigned int *framerate);
+
+/*******************************************************************************
+*@ Description    :设置实时码率函数
+*@ Input          :<chn>通道
+					<bitrate>码率（kpbs）
+					<framerate>帧率
+*@ Output         :
+*@ Return         :
+*@ attention      :
+*******************************************************************************/
+int set_H264_bitrate(unsigned int chn,unsigned int bitrate,unsigned int framerate);
 
 
 /*******************************************************************************

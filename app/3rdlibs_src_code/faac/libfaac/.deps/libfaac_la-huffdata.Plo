@@ -1,0 +1,24 @@
+libfaac_la-huffdata.lo: huffdata.c huffdata.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../lib/gcc/mips-linux-gnu/4.7.2/include/stdint.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/stdint.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/features.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/uClibc_config.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/sys/cdefs.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/wchar.h \
+ /home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/wordsize.h
+
+huffdata.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../lib/gcc/mips-linux-gnu/4.7.2/include/stdint.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/stdint.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/features.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/uClibc_config.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/sys/cdefs.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/wchar.h:
+
+/home/yuanda.yu/software/mips-gcc472-glibc216-64bit/bin/../mips-linux-gnu/libc/uclibc/usr/include/bits/wordsize.h:

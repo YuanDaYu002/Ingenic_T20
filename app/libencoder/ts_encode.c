@@ -107,14 +107,16 @@ int ts_record(void **out_buf,int* out_len,int recode_time)
    
 
 	//--request stream,替换为循环缓冲区的用户申请--------------------------------------
-	CircularBuffer_t* buffer_handle = CircularBufferGetHandle(IMAGE_SIZE_1920x1080);
+	CircularBuffer_t* buffer_handle = NULL;
+	buffer_handle = CircularBufferGetHandle(IMAGE_SIZE_1920x1080);
 	if(NULL == buffer_handle)
 	{
 		ERROR_LOG("CircularBufferGetHandle failed !\n");
 		return -1;
 	}
 
-	int user_id = CircularBufferRequestUserID(buffer_handle);
+	int user_id = -1;
+	user_id = CircularBufferRequestUserID(buffer_handle);
 	if(user_id < 0)
 	{
 		ERROR_LOG("CircularBufferRequestUserID failed !\n");
