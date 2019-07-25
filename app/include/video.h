@@ -39,8 +39,6 @@ extern "C"
 #define SENSOR_WIDTH_SECOND		640 //480  //640	 //视频次分辨率(不能超过max_width = 800 max_height = 800)
 #define SENSOR_HEIGHT_SECOND	360 //272  //360
 
-#define NR_FRAMES_TO_SAVE		200
-#define STREAM_BUFFER_SIZE		(1 * 1024 * 1024)
 
 #define ENC_H264_CHANNEL		0
 #define ENC_JPEG_CHANNEL		1
@@ -53,7 +51,6 @@ extern "C"
 #define SLEEP_TIME				1
 
 #define FS_CHN_NUM			2  //MIN 1,MAX 2
-#define IVS_CHN_ID          1
 
 #define CH0_INDEX  			0	//主通道
 #define CH1_INDEX  			1	//次通道

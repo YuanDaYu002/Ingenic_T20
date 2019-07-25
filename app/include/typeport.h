@@ -19,11 +19,11 @@ extern "C"
 typedef unsigned char HLE_U8;
 typedef unsigned short HLE_U16;
 typedef unsigned int HLE_U32;
-typedef signed char HLE_S8;
-typedef signed short HLE_S16;
-typedef signed int HLE_S32;
+typedef char HLE_S8;
+typedef short HLE_S16;
+typedef int HLE_S32;
 typedef unsigned long long  HLE_U64;
-typedef signed long long HLE_S64;
+typedef long long HLE_S64;
 
 
 #define HLE_RET_OK               (0)     //正常

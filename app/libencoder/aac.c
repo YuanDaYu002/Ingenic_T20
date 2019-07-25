@@ -450,6 +450,9 @@
 	#endif
 	 
 	 free(aac_config.AACBuffer);
+
+	 pthread_mutex_destroy(&audFrm_flg.audFrm_mut);
+	 pthread_cond_destroy(&audFrm_flg.audFrm_cnd);
 	 
 	 DEBUG_LOG("AAC_encode_exit success !\n");
 	  return 0;

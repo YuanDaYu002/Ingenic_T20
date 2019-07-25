@@ -41,10 +41,13 @@ LDFLAGS += -Wl,-gc-sections
 
 ### INC_FLAGS ######################################################################
 INC_FLAGS = -I$(SDK_PATH)/include/imp
+INC_FLAGS += -I$(SDK_PATH)/include
 INC_FLAGS += -I$(SDK_PATH)/include/sysutils
 INC_FLAGS += -I$(MY_PATH)/include
 INC_FLAGS += -I$(MY_PATH)/3rdinc
 INC_FLAGS += -I$(MY_PATH)/3rdinc/faac
+INC_FLAGS += -I$(MY_PATH)/3rdinc/PPCS
+INC_FLAGS += -I$(MY_PATH)/3rdinc/cJSON
 
 ####################################################################################
 SENSOR_TYPE ?=
@@ -56,7 +59,7 @@ SDK_LIBS = $(SDK_LIB_DIR)/libimp.a $(SDK_LIB_DIR)/libsysutils.a  $(SDK_LIB_DIR)/
 
 #LIBS +=  -limp  -lsysutils  -lalog 
 LIBS = $(SDK_LIBS) -lpthread -ldl -lm  -lc  -lrt 
-LIBS += -lfaac
+LIBS += -lfaac  -lcJSON 
 
 
 ########################################################################

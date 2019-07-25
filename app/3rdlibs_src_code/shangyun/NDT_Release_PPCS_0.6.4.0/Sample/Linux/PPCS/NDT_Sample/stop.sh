@@ -1,0 +1,1 @@
+killall NDT_Sample

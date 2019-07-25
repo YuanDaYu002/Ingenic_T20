@@ -1,0 +1,7 @@
+INC_DIR=../../../../Include/PPCS
+LIB_DIR=./
+all:
+	g++ -DLINUX NDT_Sample.cpp -m32 -L$(LIB_DIR) -I$(INC_DIR) -Wl,-rpath,./ -lNDT_API_PPCS -lpthread -o NDT_Sample
+
+clean:
+	rm -rf NDT_Sample *.o *.bak *~ 
