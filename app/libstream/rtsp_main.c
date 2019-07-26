@@ -188,7 +188,7 @@ WAIT_START:
 
 		if(2 == ret)//rtsp客户端关闭
 		{
-			ERROR_LOG("remotr rtsp client call close!\n");
+			ERROR_LOG("remote rtsp client call close!\n");
 			goto WAIT_START;
 		}
 		else if(ret <= 0)//失败
